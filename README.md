@@ -1,4 +1,3 @@
-<pre>
 ## MLib
 ----------------------------------------------------------------------------------------------
 # Presentation
@@ -7,5 +6,5 @@ FR: MLib est une petit librairie python pour aider les élèves de première en 
 ----------------------------------------------------------------------------------------------
 # Todo
 -EN: Optimize the rendering process<br />
- FR: Optimiser le processus de rendu
-</pre>
+<pre> <pre>FR: Optimiser le processus de rendu
+
