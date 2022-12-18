@@ -77,6 +77,21 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
         if self.enfant.count(enfant) > 0:
             self.enfant.remove(enfant)
 
+    def get_arrierePlanCouleur(self): #Retourne la couleur d'arrière plan du widget
+        return self.arrierePlanCouleur
+
+    def get_curseurSurvol(self): #Retourne le curseur au survol du widget
+        return self.curseurSurvol
+
+    def get_enfant(self): #Retourne tous les enfants du widget
+        return self.enfant
+
+    def get_fenetrePrincipale(self): #Retourne la fenetre principale du widget
+        return self.fenetrePrincipale
+
+    def get_focus(self): #Retourne si le widget est focus ou non
+        return self.focus
+
     def get_globalPosition(self):
         return self.globalPosition
 
@@ -94,6 +109,9 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
         if positionSouris[0] > self.globalPosition[0] and positionSouris[0] < self.globalPosition[0] + self.taille[0] and positionSouris[1] > self.globalPosition[1] and positionSouris[1] < self.globalPosition[1] + self.taille[1]:
             return True
         return False
+
+    def get_type(self): #Retourne le type du widget
+        return self.type
 
     def get_taille(self): #Retourne la taille du widget
         return self.taille
@@ -125,10 +143,33 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
     def _renderBeforeHierarchy(self, surface): #Méthode permettant de modifier le rendu de render() avant que la hiérarchie soit appliqué, à ré-implémenter
         return surface
 
+    def set_arrierePlanCouleur(self, couleur): #Change la couleur d'arrière plan du widget
+        self.couleur = couleur
+
+    def set_curseurSurvol(self, curseurSurvol): #Change la couleur d'arrière plan du widget
+        self.curseurSurvol = curseurSurvol
+    
     def set_parent(self, parent): #Retourne le parent du widget
         if self.parent != None:
             self.parent.__enleverEnfant(self)
+        parent.__nouveauEnfant(self)
         self.parent = parent
+
+    def set_position(self, position): #Change la position du widget
+        self.position = position
+        self.globalPosition = position
+        fenetreBuff = self #Variable temporaire pour chercher la fenêtre principale
+        while True: #Chercher la fenêtre principale
+            if fenetreBuff.type != "Fenetre": #Si le widget anbalysé n'est pas la fenêtre principale
+                if fenetreBuff.parent != None: #Si l'objet à un parent
+                    fenetreBuff = fenetreBuff.parent #Mettre le widget analysée au parent du widget analysé
+                    self.globalPosition = (self.globalPosition[0] + fenetreBuff.position[0], self.globalPosition[1] + fenetreBuff.position[1]) #Changer le position globale de l'objet
+                else:
+                    break #Quitter la boucle
+            else:
+                self.fenetrePrincipale = fenetreBuff #Mettre la fenêtre principale au widget analysé
+                self.fenetrePrincipale._nouvelleElement(self) #Dire à la fenêtre que cette éléments existe
+                break #Quitter la boucle
 
     def set_taille(self, taille): #Change la taille du widget
         self.taille = taille
