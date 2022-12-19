@@ -8,14 +8,4 @@ widget=MBordure((10, 10), (100, 100), widgetParent, arrierePlanCouleur=(255, 0, 
 while True:
     app.frame()
 
-    print(widget.get_position(), widget.get_globalPosition())
-
-    widget.set_position((50, 50))
-
-    app.frame()
-
-    print(widget.get_position(), widget.get_globalPosition())
-
-    exit()
-
     display.flip()

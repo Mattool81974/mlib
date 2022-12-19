@@ -128,7 +128,7 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
         retour = Surface(self.taille, SRCALPHA).convert_alpha() #Création de l'image qui sera retourné à la fin
         retour.fill(self.arrierePlanCouleur)
         if self.get_survol():
-            self.fenetrePrincipale.set_cursor(self.curseurSurvol)
+            self.fenetrePrincipale.set_curseur(self.curseurSurvol)
         retour = self._renderBeforeHierarchy(retour) #Appel de la fonction pour appliquer un render avec celle des widgets enfants
         for surface in self.enfant: #Application des render des enfants
             if surface.visible: #Si l'enfant est visible
@@ -213,7 +213,8 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         self.tempsDExecution = 0 #Temps d'éxécution depuis le dernier comptage des fps
 
     def _nouvelleElement(self, element): #Ajouter un élément à la fenêtre
-        self.toutLesElements.append(element)
+        if self.toutLesElements.count(element) <= 0:
+            self.toutLesElements.append(element)
     
     def _renderBeforeHierarchy(self, surface): #Ré-implémentation de la fonction pour afficher l'image d'arrière plan
         img = None #Création de la variable avec l'image a appliquer
@@ -299,18 +300,83 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
                     self.shiftPressee = False
                     self.evenement.remove(evnt)
 
-        self.set_cursor(self.curseurSurvol) #Initialiser le curseur à une valeur par défaut
+        self.set_curseur(self.curseurSurvol) #Initialiser le curseur à une valeur par défaut
         img = self._render()
         self.fenetre.blit(img, self.get_rect())
         mouse.set_cursor(self.curseur)
 
-    def get_cursor(self): #Retourne le curseur de la fenêtre
+    def get_actuelFrameGif(self): #Retourne la frame actuel si l'image d'arriere plan est un gif
+        return self.actuelFrameGif
+
+    def get_arrierePlanImage(self): #Retourne l'image d'arrière plan
+        return self.arrierePlanImage
+
+    def get_arrierePlanImageAlignement(self): #Retourne l'image d'arrière plan alignement
+        return self.arrierePlanImageAlignement
+
+    def get_arrierePlanImageParSeconde(self): #Retourne le nombre d'image par seconde a défilé si l'image d'arrière plan est un gif
+        return self.arrierePlanImageParSeconde
+
+    def get_arrierePlanImageParSecondeEcoule(self): #Retourne le nombre de seconde écoulé depuis la dernière actualisation de l'image d'arrière plan si celle ci est un gif
+        return self.arrierePlanImageParSecondeEcoule
+
+    def get_caplockPressee(self): #Retourne si la touche de vérouillage des majuscule est active.
+        return self.caplockPressee
+
+    def get_curseur(self): #Retourne le curseur de la fenêtre
         return self.curseur
+
+    def get_deltaTime(self): #Retourne le deltaTime
+        return self.deltaTime
+
+    def get_evenement(self): #Retourne les évènements pygame
+        return self.evenement
+
+    def get_fenetre(self): #Retourne la fenêtre pygame sur laquelle afficher le tout
+        return self.fenetre
+
+    def get_fps(self): #Retourne le nombre de fps cette seconde
+        return self.fps
+
+    def get_fpsMoyen(self): #Retourne le nombre de fps moyen depuis le début de l'application
+        return self.fpsMoyen
+
+    def get_positionSouris(self): #Retourne la position de la souris
+        return self.fpsMoyen
+
+    def get_shiftPressee(self): #Retourne si la touche shift est préssé ou non
+        return self.shiftPressee
+
+    def get_tempsDExecution(self): #Retourne le temps d'éxécution de l'application
+        return self.tempsDExecution
 
     def get_titreFenetre(self): #Retourne le titre de la fenêtre
         return display.get_caption()
+
+    def get_toutLesElements(self): #Retourne tous les éléments de l'application
+        return self.toutLesElements
     
-    def set_cursor(self, curseur): #Changer le curseur de la fenêtre
+    def set_arrierePlanImage(self, arrierePlanImage): #Change l'image d'arrière plan
+        self.arrierePlanImage = arrierePlanImage
+        if os.path.exists(arrierePlanImage): #Charger l'image de l'arrière plan
+            self.arrierePlanImage = image.load(arrierePlanImage)
+        else:
+            sep = arrierePlanImage.split(".")
+            if sep[-1] == "gif": #Fichier gif split
+                self.arrierePlanImage = ""
+                for i in range(len(sep) - 1):
+                    self.arrierePlanImage += sep[i]
+                self.actuelFrameGif = 0
+            else: #Le fichier n'existe pas
+                self.arrierePlanImage = None
+
+    def set_arrierePlanImageAlignement(self, arrierePlanImageAlignement): #Change l'alignement de l'image d'arrière plan
+        self.arrierePlanImageAlignement = arrierePlanImageAlignement
+
+    def set_arrierePlanImageParSeconde(self, arrierePlanImageParSeconde): #Change le nombre d'image par seconde a défilé si l'image d'arrière plan est un gif
+        self.arrierePlanImageParSeconde = arrierePlanImageParSeconde
+    
+    def set_curseur(self, curseur): #Changer le curseur de la fenêtre
         self.curseur = curseur
 
     def set_titreFenetre(self, titre): #Actualiser le titre de la fenêtre
