@@ -77,6 +77,21 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
         if self.enfant.count(enfant) > 0:
             self.enfant.remove(enfant)
 
+    def get_arrierePlanCouleur(self): #Retourne la couleur d'arrière plan du widget
+        return self.arrierePlanCouleur
+
+    def get_curseurSurvol(self): #Retourne le curseur au survol du widget
+        return self.curseurSurvol
+
+    def get_enfant(self): #Retourne tous les enfants du widget
+        return self.enfant
+
+    def get_fenetrePrincipale(self): #Retourne la fenetre principale du widget
+        return self.fenetrePrincipale
+
+    def get_focus(self): #Retourne si le widget est focus ou non
+        return self.focus
+
     def get_globalPosition(self):
         return self.globalPosition
 
@@ -95,6 +110,9 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
             return True
         return False
 
+    def get_type(self): #Retourne le type du widget
+        return self.type
+
     def get_taille(self): #Retourne la taille du widget
         return self.taille
 
@@ -110,7 +128,7 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
         retour = Surface(self.taille, SRCALPHA).convert_alpha() #Création de l'image qui sera retourné à la fin
         retour.fill(self.arrierePlanCouleur)
         if self.get_survol():
-            self.fenetrePrincipale.set_cursor(self.curseurSurvol)
+            self.fenetrePrincipale.set_curseur(self.curseurSurvol)
         retour = self._renderBeforeHierarchy(retour) #Appel de la fonction pour appliquer un render avec celle des widgets enfants
         for surface in self.enfant: #Application des render des enfants
             if surface.visible: #Si l'enfant est visible
@@ -125,10 +143,33 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
     def _renderBeforeHierarchy(self, surface): #Méthode permettant de modifier le rendu de render() avant que la hiérarchie soit appliqué, à ré-implémenter
         return surface
 
+    def set_arrierePlanCouleur(self, couleur): #Change la couleur d'arrière plan du widget
+        self.couleur = couleur
+
+    def set_curseurSurvol(self, curseurSurvol): #Change la couleur d'arrière plan du widget
+        self.curseurSurvol = curseurSurvol
+    
     def set_parent(self, parent): #Retourne le parent du widget
         if self.parent != None:
             self.parent.__enleverEnfant(self)
+        parent.__nouveauEnfant(self)
         self.parent = parent
+
+    def set_position(self, position): #Change la position du widget
+        self.position = position
+        self.globalPosition = position
+        fenetreBuff = self #Variable temporaire pour chercher la fenêtre principale
+        while True: #Chercher la fenêtre principale
+            if fenetreBuff.type != "Fenetre": #Si le widget anbalysé n'est pas la fenêtre principale
+                if fenetreBuff.parent != None: #Si l'objet à un parent
+                    fenetreBuff = fenetreBuff.parent #Mettre le widget analysée au parent du widget analysé
+                    self.globalPosition = (self.globalPosition[0] + fenetreBuff.position[0], self.globalPosition[1] + fenetreBuff.position[1]) #Changer le position globale de l'objet
+                else:
+                    break #Quitter la boucle
+            else:
+                self.fenetrePrincipale = fenetreBuff #Mettre la fenêtre principale au widget analysé
+                self.fenetrePrincipale._nouvelleElement(self) #Dire à la fenêtre que cette éléments existe
+                break #Quitter la boucle
 
     def set_taille(self, taille): #Change la taille du widget
         self.taille = taille
@@ -172,7 +213,8 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         self.tempsDExecution = 0 #Temps d'éxécution depuis le dernier comptage des fps
 
     def _nouvelleElement(self, element): #Ajouter un élément à la fenêtre
-        self.toutLesElements.append(element)
+        if self.toutLesElements.count(element) <= 0:
+            self.toutLesElements.append(element)
     
     def _renderBeforeHierarchy(self, surface): #Ré-implémentation de la fonction pour afficher l'image d'arrière plan
         img = None #Création de la variable avec l'image a appliquer
@@ -258,18 +300,83 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
                     self.shiftPressee = False
                     self.evenement.remove(evnt)
 
-        self.set_cursor(self.curseurSurvol) #Initialiser le curseur à une valeur par défaut
+        self.set_curseur(self.curseurSurvol) #Initialiser le curseur à une valeur par défaut
         img = self._render()
         self.fenetre.blit(img, self.get_rect())
         mouse.set_cursor(self.curseur)
 
-    def get_cursor(self): #Retourne le curseur de la fenêtre
+    def get_actuelFrameGif(self): #Retourne la frame actuel si l'image d'arriere plan est un gif
+        return self.actuelFrameGif
+
+    def get_arrierePlanImage(self): #Retourne l'image d'arrière plan
+        return self.arrierePlanImage
+
+    def get_arrierePlanImageAlignement(self): #Retourne l'image d'arrière plan alignement
+        return self.arrierePlanImageAlignement
+
+    def get_arrierePlanImageParSeconde(self): #Retourne le nombre d'image par seconde a défilé si l'image d'arrière plan est un gif
+        return self.arrierePlanImageParSeconde
+
+    def get_arrierePlanImageParSecondeEcoule(self): #Retourne le nombre de seconde écoulé depuis la dernière actualisation de l'image d'arrière plan si celle ci est un gif
+        return self.arrierePlanImageParSecondeEcoule
+
+    def get_caplockPressee(self): #Retourne si la touche de vérouillage des majuscule est active.
+        return self.caplockPressee
+
+    def get_curseur(self): #Retourne le curseur de la fenêtre
         return self.curseur
+
+    def get_deltaTime(self): #Retourne le deltaTime
+        return self.deltaTime
+
+    def get_evenement(self): #Retourne les évènements pygame
+        return self.evenement
+
+    def get_fenetre(self): #Retourne la fenêtre pygame sur laquelle afficher le tout
+        return self.fenetre
+
+    def get_fps(self): #Retourne le nombre de fps cette seconde
+        return self.fps
+
+    def get_fpsMoyen(self): #Retourne le nombre de fps moyen depuis le début de l'application
+        return self.fpsMoyen
+
+    def get_positionSouris(self): #Retourne la position de la souris
+        return self.fpsMoyen
+
+    def get_shiftPressee(self): #Retourne si la touche shift est préssé ou non
+        return self.shiftPressee
+
+    def get_tempsDExecution(self): #Retourne le temps d'éxécution de l'application
+        return self.tempsDExecution
 
     def get_titreFenetre(self): #Retourne le titre de la fenêtre
         return display.get_caption()
+
+    def get_toutLesElements(self): #Retourne tous les éléments de l'application
+        return self.toutLesElements
     
-    def set_cursor(self, curseur): #Changer le curseur de la fenêtre
+    def set_arrierePlanImage(self, arrierePlanImage): #Change l'image d'arrière plan
+        self.arrierePlanImage = arrierePlanImage
+        if os.path.exists(arrierePlanImage): #Charger l'image de l'arrière plan
+            self.arrierePlanImage = image.load(arrierePlanImage)
+        else:
+            sep = arrierePlanImage.split(".")
+            if sep[-1] == "gif": #Fichier gif split
+                self.arrierePlanImage = ""
+                for i in range(len(sep) - 1):
+                    self.arrierePlanImage += sep[i]
+                self.actuelFrameGif = 0
+            else: #Le fichier n'existe pas
+                self.arrierePlanImage = None
+
+    def set_arrierePlanImageAlignement(self, arrierePlanImageAlignement): #Change l'alignement de l'image d'arrière plan
+        self.arrierePlanImageAlignement = arrierePlanImageAlignement
+
+    def set_arrierePlanImageParSeconde(self, arrierePlanImageParSeconde): #Change le nombre d'image par seconde a défilé si l'image d'arrière plan est un gif
+        self.arrierePlanImageParSeconde = arrierePlanImageParSeconde
+    
+    def set_curseur(self, curseur): #Changer le curseur de la fenêtre
         self.curseur = curseur
 
     def set_titreFenetre(self, titre): #Actualiser le titre de la fenêtre
@@ -279,56 +386,58 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
 
 
 class MBordure(MWidget): #Définition d'une représentant un widget avec une bordure
-    def __init__(self, position, taille, parent, bordureLargeur = 2, bordureCouleur = (0, 0, 0), bordureRayon = 0, bordureLargeurGauche = None, bordureLargeurDroite = None, bordureLargeurBas = None, bordureLargeurHaut = None, bordureRayonGH = None, bordureRayonDH = None, bordureRayonGB = None, bordureRayonDB = None, arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, type="Bordure"): #Constructeur de la classe
+    def __init__(self, position, taille, parent, bordureLargeur = 2, bordureCouleur = (0, 0, 0), bordureRayon = 0, borduresLargeurs = [None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, type="Bordure"): #Constructeur de la classe
         MWidget.__init__(self, position, taille, parent, arrierePlanCouleur, curseurSurvol, type) #Appeler le constructeur de la classe MWidget
-        if bordureLargeurGauche != None: #Calculer les différentes largeur
-            self.bordureLargeurGauche = bordureLargeurGauche
-        else:
-            self.bordureLargeurGauche = bordureLargeur
-        if bordureLargeurDroite != None: #Calculer les différentes largeur
-            self.bordureLargeurDroite = bordureLargeurDroite
-        else:
-            self.bordureLargeurDroite = bordureLargeur
-        if bordureLargeurBas != None: #Calculer les différentes largeur
-            self.bordureLargeurBas = bordureLargeurBas
-        else:
-            self.bordureLargeurBas = bordureLargeur
-        if bordureLargeurHaut != None: #Calculer les différentes largeur
-            self.bordureLargeurHaut = bordureLargeurHaut
-        else:
-            self.bordureLargeurHaut = bordureLargeur
-        if bordureLargeurGauche != None: #Calculer les différentes largeur
-            self.bordureLargeurGauche = bordureLargeurGauche
-        else:
-            self.bordureLargeurGauche = bordureLargeur
-        if bordureRayonGH != None: #Calculer les différents rayons
-            self.bordureRayonGH = bordureRayonGH
-        else:
-            self.bordureRayonGH = bordureRayon
-        if bordureRayonDH != None: #Calculer les différents rayons
-            self.bordureRayonDH = bordureRayonDH
-        else:
-            self.bordureRayonDH = bordureRayon
-        if bordureRayonGB != None: #Calculer les différents rayons
-            self.bordureRayonGB = bordureRayonGB
-        else:
-            self.bordureRayonGB = bordureRayon
-        if bordureRayonDB != None: #Calculer les différents rayons
-            self.bordureRayonDB = bordureRayonDB
-        else:
-            self.bordureRayonDB = bordureRayon
+        for i in enumerate(borduresLargeurs): #Actualisation des largeurs des bordures
+            if borduresLargeurs[i[0]] == None:
+                borduresLargeurs[i[0]] = bordureLargeur
+        self.bordureLargeur = bordureLargeur
+        self.borduresLargeurs = borduresLargeurs
+        for i in enumerate(borduresRayons): #Actualisation des rayons des bordures
+            if borduresRayons[i[0]] == None:
+                borduresRayons[i[0]] = bordureRayon
+        self.bordureRayon = bordureRayon
+        self.borduresRayons = borduresRayons
         self.bordureCouleur = bordureCouleur
     def _renderBeforeHierarchy(self, surface): #Ré-implémentation de la fonction pour afficher la bordure
         surface.fill((0, 0, 0, 0))
-        draw.rect(surface, self.bordureCouleur, (0, 0, self.taille[0], self.taille[1]), border_bottom_left_radius=self.bordureRayonGB, border_top_left_radius=self.bordureRayonGH, border_bottom_right_radius=self.bordureRayonDB, border_top_right_radius=self.bordureRayonDH) #Dessiner la bordure
-        draw.rect(surface, self.arrierePlanCouleur, (self.bordureLargeurGauche, self.bordureLargeurHaut, self.taille[0] - (self.bordureLargeurGauche + self.bordureLargeurDroite), self.taille[1] - (self.bordureLargeurBas + self.bordureLargeurDroite)), border_bottom_left_radius=self.bordureRayonGB, border_top_left_radius=self.bordureRayonGH, border_bottom_right_radius=self.bordureRayonDB, border_top_right_radius=self.bordureRayonDH) #Dessiner l'intèrieur de la bordure
+        draw.rect(surface, self.bordureCouleur, (0, 0, self.taille[0], self.taille[1]), border_bottom_left_radius=self.borduresRayons[2], border_top_left_radius=self.borduresRayons[3], border_bottom_right_radius=self.borduresRayons[1], border_top_right_radius=self.borduresRayons[0]) #Dessiner la bordure
+        draw.rect(surface, self.arrierePlanCouleur, (self.borduresLargeurs[3], self.borduresLargeurs[0], self.taille[0] - (self.borduresLargeurs[1] + self.borduresLargeurs[3]), self.taille[1] - (self.borduresLargeurs[2] + self.borduresLargeurs[0])), border_bottom_left_radius=self.borduresRayons[2], border_top_left_radius=self.borduresRayons[3], border_bottom_right_radius=self.borduresRayons[1], border_top_right_radius=self.borduresRayons[0]) #Dessiner l'intèrieur de la bordure
         return surface
+
+    def get_bordure(self, i = -1): #Retourne la largeur de la bordure i
+        if i == -1:
+            return self.bordureLargeur
+        return self.borduresLargeurs[i]
+
+    def get_bordureCouleur(self): #Retourne la couleur de la bordure
+        return self.bordureCouleur
+
+    def get_bordureRayon(self, i = -1): #Retourne le rayon de la bordure i
+        if i == -1:
+            return self.bordureRayon
+        return self.borduresRayons[i]
+
+    def set_bordure(self, bordureLargeur, i = -1): #Change la largeur de la bordure i
+        if i == -1:
+            self.bordureLargeur = bordureLargeur
+        else:
+            self.borduresLargeurs[i] = bordureLargeur
+
+    def set_bordureCouleur(self, couleur): #Cange la couleur de la bordure
+        self.bordureCouleur = couleur
+
+    def get_bordureRayon(self, bordureRayon, i = -1): #Change le rayon d'un coin de la bordure i
+        if i == -1:
+            self.bordureRayon = bordureRayon
+        else:
+            self.borduresRayons[i] = bordureRayon
 
 
 
 class MTexte(MBordure): #Définition d'une classe représentant un texte graphique
-    def __init__(self, texte, position, taille, parent=None, curseur = False, curseurLargeur=2,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = -1, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur = 0, bordureRayon = 0, bordureLargeurGauche = None, bordureLargeurDroite = None, bordureLargeurBas = None, bordureLargeurHaut = None, bordureRayonGH = None, bordureRayonDH = None, bordureRayonGB = None, bordureRayonDB = None, arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, type = "Texte"): #Constructeur
-        MBordure.__init__(self, position, taille, parent, bordureLargeur, bordureCouleur, bordureRayon, bordureLargeurGauche, bordureLargeurDroite, bordureLargeurBas, bordureLargeurHaut, bordureRayonGH, bordureRayonDH, bordureRayonGB, bordureRayonDB, arrierePlanCouleur, curseurSurvol, type) #Appel du constructeur parent
+    def __init__(self, texte, position, taille, parent=None, curseur = False, curseurLargeur=2,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = -1, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur = 0, bordureRayon = 0, borduresLargeurs = [None, None, None, None], borduresRayons = [None, None, None, None], arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, type = "Texte"): #Constructeur
+        MBordure.__init__(self, position, taille, parent, bordureLargeur, bordureCouleur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, type) #Appel du constructeur parent
         self.curseur = curseur
         self.curseurLargeur = curseurLargeur
         self.curseurPosition = 0 #Défini la position du curseur dans le texte
@@ -336,7 +445,7 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         self.curseurTempsDAffichageAffiche = True
         self.curseurTempsDAffichageEcoule = 0 #Temps écoulé depuis le changement de curseur
         if ligneLongueurMax < 0:
-            self.ligneLongueurMax = taille[0] - bordureLargeur * 2
+            self.ligneLongueurMax = taille[0] - (borduresLargeurs[1] + borduresLargeurs[3])
         else:
             self.ligneLongueurMax = ligneLongueurMax
         self.ligneMax = ligneMax
@@ -367,8 +476,6 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
             self.curseurPosition = 0
         elif self.curseurPosition >= len(self.texte):
             self.curseurPosition = len(self.texte)
-            
-        #print("A", self.ligneLongueurMax)
         
         xCurseur = 0
         yCurseur = 0
@@ -446,13 +553,13 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
                     buff += 1
             
         multiplier = 1
-        xTexte = self.bordureLargeurGauche
-        yTexte = self.bordureLargeurHaut
+        xTexte = self.borduresLargeurs[3]
+        yTexte = self.borduresLargeurs[0]
         
         if self.texteAlignement[1] == "C": #Calculer l'alignement y du 1er texte
             yTexte = self.taille[1]/2-tailleY/2
         elif self.texteAlignement[1] == "B":
-                yTexte = self.taille[1] - (self.bordureLargeurBas + c.get_size[1])
+                yTexte = self.taille[1] - (self.borduresLargeurs[2] + c.get_size[1])
                 multiplier = -1
             
         self.texteRect.clear() #Vider les coordonnées des textes
@@ -461,7 +568,7 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
             if self.texteAlignement[0] == "C":
                 xTexte = self.taille[0]/2 - c.get_size()[0]/2
             elif self.texteAlignement[0] == "D":
-                xTexte = self.taille[0] - (self.bordureLargeurDroite + c.get_size()[0])
+                xTexte = self.taille[0] - (self.borduresLargeurs[1] + c.get_size()[0])
              
             if buff == ligneCurseur:
                 xCurseur += xTexte
@@ -481,23 +588,105 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
             self.curseurTempsDAffichageEcoule = -1
             
         return surfaceF
+
+    def get_curseur(self):
+        return self.curseur
+
+    def get_curseurLargeur(self):
+        return self.curseurLargeur
+
+    def get_curseurPosition(self):
+        return self.curseurPosition
+
+    def get_curseurTempDAffichage(self):
+        return self.curseurTempsDAffichage
+
+    def get_curseurTempsDAffichageAffiche(self):
+        return self.curseurTempsDAffichageAffiche
+
+    def get_curseurTempsDAffichageEcoule(self):
+        return self.curseurTempsDAffichageEcoule
+
+    def get_ligneLongueurMax(self):
+        return self.ligneLongueurMax
+
+    def get_ligneMax(self):
+        return self.ligneMax
+
+    def get_longueurMax(self):
+        return self.longueurMax
+
+    def get_policeTaille(self):
+        return self.policeTaille
+
+    def get_policeType(self):
+        return self.policeType
     
     def get_texte(self):
         return self.texte
+
+    def get_textes(self):
+        return self.textes
+
+    def get_texteAlignement(self):
+        return self.texteAlignement
+
+    def get_texteCouleur(self):
+        return self.texteCouleur
+
+    def get_texteRect(self):
+        return self.texteRect
+
+    def set_curseur(self, curseur):
+        self.curseur = curseur
+
+    def set_curseurLargeur(self, curseurLargeur):
+        self.curseurLargeur = curseurLargeur
     
-    def set_curseurPosition(self, position):
-        self.curseurPosition = position
+    def set_curseurPosition(self, curseurPosition):
+        self.curseurPosition
+
+    def set_curseurTempsDAffichage(self, curseurTempsDAffichage):
+        self.curseurTempsDAffichage = curseurTempsDAffichage
+
+    def set_curseurTempsDAffichageAffiche(self, curseurTempsDAffichageAffiche):
+        self.curseurTempsDAffichageAffiche = curseurTempsDAffichageAffiche
+
+    def set_curseurTempsDAffichageEcoule(self, curseurTempsDAffichageEcoule):
+        self.curseurTempsDAffichageEcoule = curseurTempsDAffichageEcoule
+
+    def set_ligneLongueurMax(self, ligneLongueurMax):
+        self.ligneLongueurMax = ligneLongueurMax
+
+    def set_ligneMax(self, ligneMax):
+        self.ligneMax = ligneMax
+
+    def set_longueurMax(self, longueurMax):
+        self.longueurMax = longueurMax
+
+    def set_policeTaille(self, policeTaille):
+        self.policeTaille = policeTaille
+
+    def set_policeType(self, policeType):
+        self.policeType = policeType
 
     def set_texte(self, texte):
         self.texte = texte
 
+    def set_texteAlignement(self, texteAlignement):
+        self.texteAlignement = texteAlignement
+
+    def set_texteCouleur(self, texteCouleur):
+        self.texteCouleur = texteCouleur
+
 
 
 class MBouton(MTexte): #Définition d'une classe représentant un bouton
-    def __init__(self, position, taille, parent, actionAuSurvol = "", texte = "", curseur = False, curseurLargeur=2,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = 32, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur=5, bordureRayon = 0, bordureLargeurGauche = None, bordureLargeurDroite = None, bordureLargeurBas = None, bordureLargeurHaut = None, bordureRayonGH = None, bordureRayonDH = None, bordureRayonGB = None, bordureRayonDB = None, arrierePlanCouleur = (255, 255, 255), curseurSurvol = SYSTEM_CURSOR_HAND, type="Bouton"):
-        MTexte.__init__(self, texte, position, taille, parent, curseur, curseurLargeur, curseurTempsDAffichage, ligneLongueurMax, ligneMax, longueurMax, policeTaille, policeType, texteAlignement, texteCouleur, bordureCouleur, bordureLargeur, bordureRayon, bordureLargeurGauche, bordureLargeurDroite, bordureLargeurBas, bordureLargeurHaut, bordureRayonGH, bordureRayonDH, bordureRayonGB, bordureRayonDB, arrierePlanCouleur, curseurSurvol, type)
+    def __init__(self, texte, position, taille, parent, actionAuSurvol = "", curseur = False, curseurLargeur=2,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = 32, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur=5, bordureRayon = 0, borduresLargeurs=[None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur = (255, 255, 255), curseurSurvol = SYSTEM_CURSOR_HAND, type="Bouton"):
+        MTexte.__init__(self, texte, position, taille, parent, curseur, curseurLargeur, curseurTempsDAffichage, ligneLongueurMax, ligneMax, longueurMax, policeTaille, policeType, texteAlignement, texteCouleur, bordureCouleur, bordureLargeur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, type)
         self.actionAuSurvol = actionAuSurvol
         self.click = False #Savoir si l'objet est clické
+
     def _renderBeforeHierarchy(self, surfaceF):
         self.click = False
         taillePolice = self.policeTaille #Plein de variables temporaires pour pouvoir bien utiliser le survol
@@ -517,13 +706,20 @@ class MBouton(MTexte): #Définition d'une classe représentant un bouton
         self.policeTaille = taillePolice
         self.texte = texte
         return surfaceF
-    def get_clicke(self):
+
+    def get_actionAuSurvol(self):
+        return self.actionAuSurvol
+
+    def get_click(self):
         return self.click
+
+    def set_actionAuSurvol(self, actionAuSurvol):
+        self.actionAuSurvol = actionAuSurvol
 
 
 class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée classe
-    def __init__(self, position, taille, parent, texte = "", caracteresAutorises = "all", curseur = True, curseurLargeur=2,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = 32, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur=5, bordureRayon = 0, bordureLargeurGauche = None, bordureLargeurDroite = None, bordureLargeurBas = None, bordureLargeurHaut = None, bordureRayonGH = None, bordureRayonDH = None, bordureRayonGB = None, bordureRayonDB = None, arrierePlanCouleur = (255, 255, 255), curseurSurvol = SYSTEM_CURSOR_HAND, type = "EntreeTexte"): #Constructeur d'une entrée texte grâce à la taille, la position, et toutes les variables secondaires
-        MTexte.__init__(self, texte, position, taille, parent, curseur, curseurLargeur, curseurTempsDAffichage, ligneLongueurMax, ligneMax, longueurMax, policeTaille, policeType, texteAlignement, texteCouleur, bordureCouleur, bordureLargeur, bordureRayon, bordureLargeurGauche, bordureLargeurDroite, bordureLargeurBas, bordureLargeurHaut, bordureRayonGH, bordureRayonDH, bordureRayonGB, bordureRayonDB, arrierePlanCouleur, curseurSurvol, type) #Appelle du constructeur de MWidget
+    def __init__(self, position, taille, parent, caracteresAutorises = "all", texte = "", curseur = True, curseurLargeur=2,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = 32, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur=5, bordureRayon = 0, borduresLargeurs=[None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur = (255, 255, 255), curseurSurvol = SYSTEM_CURSOR_HAND, type = "EntreeTexte"): #Constructeur d'une entrée texte grâce à la taille, la position, et toutes les variables secondaires
+        MTexte.__init__(self, texte, position, taille, parent, curseur, curseurLargeur, curseurTempsDAffichage, ligneLongueurMax, ligneMax, longueurMax, policeTaille, policeType, texteAlignement, texteCouleur, bordureCouleur, bordureLargeur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, type) #Appelle du constructeur de MWidget
         self.caracteresAutorises = caracteresAutorises
     def _renderBeforeHierarchy(self, surface): #Ré-implémentation de la fonction pour afficher l'entrée
         if self.focus: #Si le widget est focus
@@ -553,3 +749,9 @@ class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée 
             curseurTempsDAffichageEcoule = -1
         super()._renderBeforeHierarchy(surface)
         return surface
+
+    def get_caracteresAutorises(self):
+        return self.caracteresAutorises
+
+    def set_caracteresAutorises(self, caracteresAutorises):
+        self.caracteresAutorises = caracteresAutorises
