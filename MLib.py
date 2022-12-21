@@ -436,7 +436,7 @@ class MBordure(MWidget): #Définition d'une représentant un widget avec une bor
 
 
 class MTexte(MBordure): #Définition d'une classe représentant un texte graphique
-    def __init__(self, texte, position, taille, parent=None, curseur = False, curseurLargeur=2,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = -1, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur = 0, bordureRayon = 0, borduresLargeurs = [None, None, None, None], borduresRayons = [None, None, None, None], arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, type = "Texte"): #Constructeur
+    def __init__(self, texte, position, taille, parent, curseur = False, curseurLargeur=2,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = -1, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur = 0, bordureRayon = 0, borduresLargeurs = [None, None, None, None], borduresRayons = [None, None, None, None], arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, type = "Texte"): #Constructeur
         MBordure.__init__(self, position, taille, parent, bordureLargeur, bordureCouleur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, type) #Appel du constructeur parent
         self.curseur = curseur
         self.curseurLargeur = curseurLargeur
@@ -481,7 +481,7 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         yCurseur = 0
         hCurseur = 0
 
-        if len(self.texte) > self.longueurMax: #Vérifier la taille du texte
+        if len(self.texte) > self.longueurMax and self.longueurMax >= 0: #Vérifier la taille du texte
             self.texte = self.texte[0:self.longueurMax]
         
         surfaceF = MBordure._renderBeforeHierarchy(self, surfaceF) #Appel de la fonction de bordure
@@ -745,7 +745,7 @@ class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée 
                         caractere = ""
                         self.curseurPosition += 1
                     if self.caracteresAutorises == "all" or self.caracteresAutorises.count(caractere) > 0: #Si le caractère est authorisé
-                        if len(self.texte) + len(caractere) <= self.longueurMax: #Si le texte n'est pas trop long
+                        if len(self.texte) + len(caractere) <= self.longueurMax or self.longueurMax < 0: #Si le texte n'est pas trop long
                             self.texte = self.texte[0:self.curseurPosition] + caractere + self.texte[self.curseurPosition:len(self.texte)] #Ajouter le caractère au texte
                             self.curseurPosition += len(caractere)
                     self.fenetrePrincipale.evenement.remove(evnt)
