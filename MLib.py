@@ -472,14 +472,17 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
                     else:
                         self.curseurTempsDAffichageAffiche = True
                     
-        if self.curseurPosition < 0:
+        if self.curseurPosition < 0: #Calculer la position du curseur (trop petite ou trop grande)
             self.curseurPosition = 0
         elif self.curseurPosition >= len(self.texte):
             self.curseurPosition = len(self.texte)
         
-        xCurseur = 0
+        xCurseur = 0 #Définir les coordonées du curseur
         yCurseur = 0
         hCurseur = 0
+
+        if len(self.texte) > self.longueurMax: #Vérifier la taille du texte
+            self.texte = self.texte[0:self.longueurMax]
         
         surfaceF = MBordure._renderBeforeHierarchy(self, surfaceF) #Appel de la fonction de bordure
         if font.get_fonts().count(self.policeType) <= 0: #Vérification de la police
@@ -742,8 +745,9 @@ class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée 
                         caractere = ""
                         self.curseurPosition += 1
                     if self.caracteresAutorises == "all" or self.caracteresAutorises.count(caractere) > 0: #Si le caractère est authorisé
-                        self.texte = self.texte[0:self.curseurPosition] + caractere + self.texte[self.curseurPosition:len(self.texte)] #Ajouter le caractère au texte
-                        self.curseurPosition += len(caractere)
+                        if len(self.texte) + len(caractere) <= self.longueurMax: #Si le texte n'est pas trop long
+                            self.texte = self.texte[0:self.curseurPosition] + caractere + self.texte[self.curseurPosition:len(self.texte)] #Ajouter le caractère au texte
+                            self.curseurPosition += len(caractere)
                     self.fenetrePrincipale.evenement.remove(evnt)
         else:
             curseurTempsDAffichageEcoule = -1
