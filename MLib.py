@@ -93,11 +93,11 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
     def get_focus(self): #Retourne si le widget est focus ou non
         return self.focus
 
-    def get_isFocused(self): #Retourne si le widget est clické pendant cette frame ou non
-        return self.isFocused
-
     def get_globalPosition(self):
         return self.globalPosition
+
+    def get_isFocused(self): #Retourne si le widget est clické pendant cette frame ou non
+        return self.isFocused
 
     def get_parent(self): #Retourne le parent du widget
         return self.parent
@@ -212,6 +212,7 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         self.fpsMoyen = 0 #Nombre de frames par secondes en moyenne
         self.fpsNb = 0 #Nombre d'actualisation des fps
         self.fpsNbFrame = 0 #Nombre de frame entre 2 actualisations de fps
+        self.positionSouris = mouse.get_pos()  # Stocker la position de la souris dans une variable
         self.set_titreFenetre(titre)
         self.shiftPressee = False #Savoir si le bouton pour les majuscule est pressé
         self.tempsDExecution = 0 #Temps d'éxécution depuis le dernier comptage des fps
@@ -350,7 +351,7 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         return self.fpsMoyen
 
     def get_positionSouris(self): #Retourne la position de la souris
-        return self.fpsMoyen
+        return self.positionSouris
 
     def get_shiftPressee(self): #Retourne si la touche shift est préssé ou non
         return self.shiftPressee
@@ -497,72 +498,96 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         if font.get_fonts().count(self.policeType) <= 0: #Vérification de la police
             self.policeType = "Arial"
         police = font.SysFont(self.policeType, self.policeTaille) #Création de la police
-        texteFinal  = self.texte
+        texteFinal = ""
+        texteTemp  = self.texte
         
-        offsetCurseur = 0 #Savoir à quel point le curseur devra être avancer selon les modifications apportées
-        if self.ligneLongueurMax != -1:
+        offsetCurseurTemp = [] #Savoir à quel point le curseur devra être avancer selon les modifications apportées
+        if self.ligneLongueurMax != -1: #Gérer le taille du texte en ligne
             ligneTaille = 0 #Variable qui contient la taile de chaque lignes
             nombreLigne = 0
             self.texte = "" #Ré-initialisation pour préparer une modification potentielle
             tailleTotal = 0 #Variable qui contient la taile total du texte
-            for c in enumerate(texteFinal): #Gérer la taille du texte
-                self.texte += c[1]
-                tailleTotal += 1
+            for c in enumerate(texteTemp): #Gérer la taille du texte
                 if c[1] == "\n":
                     if nombreLigne < self.ligneMax - 1:
+                        self.texte += c[1]
+                        texteFinal += c[1]
+                        tailleTotal += 1
                         ligneTaille = 0
                         nombreLigne += 1
                     else: #Si il y a trop de ligne
-                        self.texte = self.texte[0:len(self.texte) - 1]
-                        texteFinal = texteFinal[0:tailleTotal - 1]
-                        if self.curseurPosition > len(texteFinal) - (offsetCurseur):
-                            self.curseurPosition = len(texteFinal) - (offsetCurseur)
+                        if self.curseurPosition > len(self.texte):
+                            self.curseurPosition = len(self.texte)
                         break
                 else:
                     ligneTaille += police.size(c[1])[0]
                     if ligneTaille > self.ligneLongueurMax: #Si un saut de ligne est nécessaire
                         if nombreLigne < self.ligneMax - 1:
-                            texteFinal = (texteFinal[0:tailleTotal-1] + "\n" + texteFinal[tailleTotal-1:len(texteFinal)])
+                            self.texte += c[1]
+                            texteFinal += "\n" + c[1]
                             nombreLigne += 1
-                            tailleTotal += 1
+                            tailleTotal += 2
                             if c[0] <= self.curseurPosition:
-                                offsetCurseur += 1
-                            ligneTaille = 0
+                                offsetCurseurTemp.append(c[0] + len(offsetCurseurTemp))
+                            ligneTaille = police.size(c[1])[0]
                         else: #Si il y a trop de ligne
-                            self.texte = self.texte[0:len(self.texte) - 1]
-                            texteFinal = texteFinal[0:tailleTotal - 1]
-                            if self.curseurPosition > len(texteFinal) - (offsetCurseur):
-                                self.curseurPosition = len(texteFinal) - (offsetCurseur)
+                            if self.curseurPosition > len(self.texte):
+                                self.curseurPosition = len(self.texte)
                             break
+                    else:
+                        self.texte += c[1]
+                        texteFinal += c[1]
+                        tailleTotal += 1
         self.textes = texteFinal.split("\n")
-        
-        buff = 0 #Variable temporaire pour placer le curseur
+
+        temp = False #Variable temporaire pour savoir si le curseur a été calculé ou non
+        tailleTotalActuel = 0 #Variable permettant d'avoir la taille totale du texte à un instant t
         ligneCurseur = 0 #Variable qui stocke la ligne du curseur
         tailleImageTexte = (0, 0)
         texteSurface = [] #Variable qui contient toutes les surfaces du texte
         tailleY = 0 #Variable qui contient la taille de tous les textes
-        for c in enumerate(self.textes): #Générer les surfaces pour les textes avec le curseur
-            if buff != -1:
-                    buff += len(c[1])
-            if self.curseurPosition <= buff:
-                i = 0 #Variable temporaire pour éviter des erreurs out of range
-                if c[0] > 0:
-                    i = buff - len(c[1])
-                posCurseur = (buff - i) - (buff-(self.curseurPosition+offsetCurseur))
-                imageTexte = police.render(c[1][0:posCurseur], True, (self.texteCouleur)) #Rendu du texte avec le curseur
-                xCurseur = imageTexte.get_size()[0]
-                imageTexte = police.render(c[1], True, (self.texteCouleur)) #Rendu du texte
-                texteSurface.append(imageTexte)
-                tailleY += imageTexte.get_size()[1]
-                buff = -1
-            else:
-                imageTexte = police.render(c[1], True, (self.texteCouleur)) #Rendu du texte
-                texteSurface.append(imageTexte)
-                tailleY += imageTexte.get_size()[1]
-                if buff != -1:
+        if self.isFocused and self.curseurRepositionnementSouris:
+            self.curseurPosition = 0
+            sourisPos = (self.fenetrePrincipale.get_positionSouris()[0] - (self.globalPosition[0] + self.borduresLargeurs[0]), self.fenetrePrincipale.get_positionSouris()[1] - (self.globalPosition[1] + self.borduresLargeurs[3]))
+            for c in enumerate(self.textes):  # Générer les surfaces pour les textes avec le curseur
+                texte = police.render(c[1], True, self.texteCouleur)
+                texteSurface.append(texte)
+                tailleY += texte.get_size()[1]
+                if not temp:
+                    if sourisPos[1] <= tailleY:
+                        tailleX = 0
+                        texteC = ""
+                        for ch in c[1]:
+                            texteC += ch
+                            tailleX = police.size(texteC)[0]
+                            if tailleX >= sourisPos[0]:
+                                tailleX = police.size(texteC[0:len(texteC)-1])[0]
+                                break
+                            self.curseurPosition += 1
+                        xCurseur = tailleX
+                        temp = True
+                    else:
+                        ligneCurseur += 1
+                        self.curseurPosition += len(c[1])
+                print(ligneCurseur, self.curseurPosition)
+        else:
+            for c in enumerate(self.textes): #Générer les surfaces pour les textes avec le curseur
+                tailleTotalActuel += len(c[1])
+                if not temp:
+                    if self.curseurPosition < tailleTotalActuel: #Si le curseur se trouve sur la ligne étudiée
+                        xCurseur = police.size(c[1][0:(len(c[1])-(tailleTotalActuel-self.curseurPosition))])[0] #Calculer x du curseur
+                        temp = True
+                    elif self.curseurPosition == tailleTotalActuel:
+                        if c[0] + 1 < len(self.textes):
+                            xCurseur = 0
+                            ligneCurseur += 1
+                        else:
+                            xCurseur = police.size(c[1])[0]
+                        temp = True
                     ligneCurseur += 1
-            if buff != -1:
-                    buff += 1
+                texte = police.render(c[1], True, self.texteCouleur)
+                texteSurface.append(texte)
+                tailleY += texte.get_size()[1]
             
         multiplier = 1
         xTexte = self.borduresLargeurs[3]
@@ -573,20 +598,20 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         elif self.texteAlignement[1] == "B":
                 yTexte = self.taille[1] - (self.borduresLargeurs[2] + c.get_size[1])
                 multiplier = -1
-            
+
         self.texteRect.clear() #Vider les coordonnées des textes
-        buff = 0 #Réutilisation de la variable buff
+        temp = 1 #Réutilisation de la variable temp
         for c in texteSurface: #Calculer les tailles de chaques texte
             if self.texteAlignement[0] == "C":
                 xTexte = self.taille[0]/2 - c.get_size()[0]/2
             elif self.texteAlignement[0] == "D":
                 xTexte = self.taille[0] - (self.borduresLargeurs[1] + c.get_size()[0])
              
-            if buff == ligneCurseur:
+            if temp == ligneCurseur: #Mettre à jour le curseur
                 xCurseur += xTexte
                 yCurseur = yTexte
                 hCurseur = c.get_size()[1]
-            buff += 1
+            temp += 1
                 
             surfaceF.blit(c, (xTexte, yTexte, c.get_size()[0], c.get_size()[1]))
             self.texteRect.append((xTexte, yTexte, c.get_size()[0], c.get_size()[1])) #Ajoute des coordonnées aux coordonnées de textes
@@ -659,7 +684,7 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         self.curseurLargeur = curseurLargeur
     
     def set_curseurPosition(self, curseurPosition):
-        self.curseurPosition
+        self.curseurPosition = curseurPosition
 
     def set_curseurRepositionnementSouris(self, curseurRepositionnementSouris):
         self.curseurRepositionnementSouris = curseurRepositionnementSouris
