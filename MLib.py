@@ -501,7 +501,7 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         texteFinal = ""
         texteTemp  = self.texte
         
-        offsetCurseurTemp = [] #Savoir à quel point le curseur devra être avancer selon les modifications apportées
+        self._offsetCurseurTemp = [] #Savoir à quel point le curseur devra être avancer selon les modifications apportées
         if self.ligneLongueurMax != -1: #Gérer le taille du texte en ligne
             ligneTaille = 0 #Variable qui contient la taile de chaque lignes
             nombreLigne = 0
@@ -510,6 +510,7 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
             for c in enumerate(texteTemp): #Gérer la taille du texte
                 if c[1] == "\n":
                     if nombreLigne < self.ligneMax - 1:
+                        self._offsetCurseurTemp.append(c[0] + len(self._offsetCurseurTemp))
                         self.texte += c[1]
                         texteFinal += c[1]
                         tailleTotal += 1
@@ -527,8 +528,6 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
                             texteFinal += "\n" + c[1]
                             nombreLigne += 1
                             tailleTotal += 2
-                            if c[0] <= self.curseurPosition:
-                                offsetCurseurTemp.append(c[0] + len(offsetCurseurTemp))
                             ligneTaille = police.size(c[1])[0]
                         else: #Si il y a trop de ligne
                             if self.curseurPosition > len(self.texte):
@@ -540,6 +539,7 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
                         tailleTotal += 1
         self.textes = texteFinal.split("\n")
 
+        offsetCurseur = [] #Variable similaire a offsetCurseurTemp mais adapté à l'analyse en temps réel
         temp = False #Variable temporaire pour savoir si le curseur a été calculé ou non
         tailleTotalActuel = 0 #Variable permettant d'avoir la taille totale du texte à un instant t
         ligneCurseur = 0 #Variable qui stocke la ligne du curseur
@@ -567,17 +567,23 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
                         xCurseur = tailleX
                         temp = True
                     else:
-                        ligneCurseur += 1
+                        if ligneCurseur < len(self.textes) - 1:
+                            ligneCurseur += 1
                         self.curseurPosition += len(c[1])
-                print(ligneCurseur, self.curseurPosition)
         else:
             for c in enumerate(self.textes): #Générer les surfaces pour les textes avec le curseur
                 tailleTotalActuel += len(c[1])
+                tailleTotalActuel -= len(offsetCurseur)
+                offsetCurseur.clear()
+                for i in self._offsetCurseurTemp:
+                    if i <= tailleTotalActuel:
+                        offsetCurseur.append(i)
+                tailleTotalActuel += len(offsetCurseur)
                 if not temp:
                     if self.curseurPosition < tailleTotalActuel: #Si le curseur se trouve sur la ligne étudiée
                         xCurseur = police.size(c[1][0:(len(c[1])-(tailleTotalActuel-self.curseurPosition))])[0] #Calculer x du curseur
                         temp = True
-                    elif self.curseurPosition == tailleTotalActuel:
+                    elif self.curseurPosition == tailleTotalActuel: #Si est à la fin d'une ligne
                         if c[0] + 1 < len(self.textes):
                             xCurseur = 0
                             ligneCurseur += 1
@@ -764,25 +770,82 @@ class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée 
             for evnt in self.fenetrePrincipale.evenement: #Chercher les évènements du clavier
                 if evnt.type == KEYDOWN:
                     caractere = evnt.unicode #Obtenir le code unicode de la touche
+                    moveCurseur = len(caractere) #Stocker le mouvement du curseur
                     if evnt.key == K_BACKSPACE:
                         caractere = ""
                         if self.curseurPosition > 0:
                             self.texte = self.texte[0:self.curseurPosition-1] + self.texte[self.curseurPosition:len(self.texte)]
-                            self.curseurPosition -= 1
+                            moveCurseur = -1
                     elif evnt.key == K_TAB:
-                        caractere = "   "
+                        moveCurseur = 4
+                        caractere = "    "
                     elif evnt.key == K_RETURN:
+                        moveCurseur = 1
                         caractere = "\n"
                     elif evnt.key == K_LEFT:
+                        self.curseurTempsDAffichageAffiche = True
+                        self.curseurTempsDAffichageEcoule = 0
                         caractere = ""
-                        self.curseurPosition -= 1
+                        moveCurseur = -1
                     elif evnt.key == K_RIGHT:
+                        self.curseurTempsDAffichageAffiche = True
+                        self.curseurTempsDAffichageEcoule = 0
                         caractere = ""
-                        self.curseurPosition += 1
+                        moveCurseur = 1
+                    elif evnt.key == K_UP:
+                        moveCurseur = 0
+                        caractere = ""
+                        ligneAvant = "" #Variable qui contient la ligne avant celle étudié
+                        nombreCaractere = 0 #Variable qui contient le nombre de caractère au moment étudié
+                        nombreCaractereAvant = 0  # Variable qui contient le nombre de caractère avant moment étudié
+                        nombreLigne = 0 #Variable qui contient le nombre de ligne étudié au moment étudié
+                        offsetCurseur = [] #Variable qui contient les sauts de lignes réels du texte
+                        for c in self.textes: #Analyser les lignes du texte
+                            nombreCaractere += len(c)
+                            nombreCaractere -= len(offsetCurseur)
+                            offsetCurseur.clear()
+                            for i in self._offsetCurseurTemp:
+                                if i <= nombreCaractere:
+                                    offsetCurseur.append(i)
+                            nombreCaractere += len(offsetCurseur)
+                            print(self.curseurPosition, nombreCaractere)
+                            if self.curseurPosition <= nombreCaractere: #Si le curseur est sur la ligne
+                                if nombreLigne > 0: #Si il y a plus d'une ligne en haut
+                                    print("A", nombreLigne)
+                                    posCar = self.curseurPosition-(nombreCaractere-len(c))
+                                    if posCar > len(ligneAvant) - 1:
+                                        posCar = len(ligneAvant) - 1
+                                    self.curseurPosition = nombreCaractereAvant+posCar #Calculer l'équivalent de la position actuel sur la ligne d'en haut
+                                break
+                            ligneAvant = c
+                            nombreLigne += 1
+                            nombreCaractereAvant = nombreCaractere - len(c)
+                    elif evnt.key == K_DOWN:
+                        moveCurseur = 0
+                        caractere = ""
+                        ligneAvant = "" #Variable qui contient la ligne avant celle étudié
+                        nombreCaractere = 0 #Variable qui contient le nombre de caractère au moment étudié
+                        nombreCaractereAvant = 0  # Variable qui contient le nombre de caractère avant moment étudié
+                        nombreLigne = 0 #Variable qui contient le nombre de ligne étudié au moment étudié
+                        for c in self.textes: #Obtenir la taille du texte
+                            nombreCaractere += len(c)
+                            nombreLigne += 1
+                        for c in self.textes[::-1]: #Analyser les lignes du texte
+                            nombreCaractere -= len(c)
+                            if self.curseurPosition >= nombreCaractere: #Si le curseur est sur la ligne
+                                if nombreLigne < len(self.textes): #Si il y a plus d'une ligne en haut
+                                    posCar = self.curseurPosition-(nombreCaractere)
+                                    if posCar > len(ligneAvant) - 1:
+                                        posCar = len(ligneAvant) - 1
+                                    self.curseurPosition = nombreCaractere+posCar #Calculer l'équivalent de la position actuel sur la ligne d'en haut
+                                break
+                            ligneAvant = c
+                            nombreLigne -= 1
+                            nombreCaractereAvant = nombreCaractere + len(c)
                     if self.caracteresAutorises == "all" or self.caracteresAutorises.count(caractere) > 0: #Si le caractère est authorisé
                         if len(self.texte) + len(caractere) <= self.longueurMax or self.longueurMax < 0: #Si le texte n'est pas trop long
                             self.texte = self.texte[0:self.curseurPosition] + caractere + self.texte[self.curseurPosition:len(self.texte)] #Ajouter le caractère au texte
-                            self.curseurPosition += len(caractere)
+                            self.curseurPosition += moveCurseur
                     self.fenetrePrincipale.evenement.remove(evnt)
         else:
             curseurTempsDAffichageEcoule = -1
