@@ -501,50 +501,119 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         police = font.SysFont(self.policeType, self.policeTaille) #Création de la police
 
         ligneCurseur = 0  # Variable qui stocke la ligne du curseur
+        longueurTotal = 0 #Longueur totale du texte
         texteSurface = []  # Variable qui contient toutes les surfaces du texte
         tailleY = 0  # Variable qui contient la taille de tous les textes
+        temp = False #Variable temporaire pour savoir si la position du curseur a été attribué ou non
+        temp2 = False  # Variable temporaire secondaire pour savoir si la position du curseur a été attribué ou non
 
         doitBreak = False
         ligne = ""
         numLigne = 0
 
-        for c in enumerate(self.texte): #Générer le texte
-            tailleC = police.size(ligne + c[1])
-            if tailleC[0] <= self.ligneLongueurMax: #Si la ligne est pas trop longue
-                if c[1] == "\n":
+        self.textes = []
+
+        if self.curseurRepositionnementSouris and self.isFocused:
+            positionSouris = (self.fenetrePrincipale.get_positionSouris()[0] - (self.borduresLargeurs[3] + self.globalPosition[0]), self.fenetrePrincipale.get_positionSouris()[1] - (self.borduresLargeurs[0] + self.globalPosition[1]))
+            for c in enumerate(self.texte):  # Générer le texte
+                taille = police.size(ligne)
+                tailleC = police.size(ligne + c[1])
+                longueurTotal += 1
+                if positionSouris[0] < tailleC[0] and not temp2:
+                    self.curseurPosition = longueurTotal - 1
+                    temp2 = True
+                    xCurseur = tailleC[0]
+                if tailleC[0] <= self.ligneLongueurMax:  # Si la ligne est pas trop longue
+                    if c[1] == "\n":
+                        if numLigne < self.ligneMax:
+                            imageLigne = police.render(ligne, True, self.texteCouleur)
+                            tailleY += imageLigne.get_size()[1]
+                            texteSurface.append(imageLigne)
+                            self.textes.append(ligne)
+                            ligne = ""
+                            numLigne += 1
+                            if not temp:
+                                temp2 = False
+                        else:
+                            numLigne += 1
+                            doitBreak = True
+                    else:
+                        ligne += c[1]
+                else:  # Sinon créer un saut de ligne
+                    if numLigne < self.ligneMax:
+                        imageLigne = police.render(ligne, True, self.texteCouleur)
+                        tailleY += imageLigne.get_size()[1]
+                        texteSurface.append(imageLigne)
+                        self.textes.append(ligne)
+                        ligne = c[1]
+                        numLigne += 1
+                        if not temp:
+                            temp2 = False
+                    else:
+                        numLigne += 1
+                        doitBreak = True
+
+                if c[0] == len(self.texte) - 1 or doitBreak:
+                    self.textes.append(ligne)
+                    numLigne += 1
+                    imageLigne = police.render(ligne, True, self.texteCouleur)
+                    tailleY += imageLigne.get_size()[1]
+                    texteSurface.append(imageLigne)
+
+                if positionSouris[1] <= tailleY and not temp: #Si l'utilisateur a cliqué cette ligne
+                    ligneCurseur = numLigne
+                    if c[0] == len(self.texte) - 1:
+                        if positionSouris[0] > tailleC[0]:
+                            self.curseurPosition = longueurTotal
+                            xCurseur = tailleC[0]
+                    else:
+                        if positionSouris[0] > taille[0]:
+                            self.curseurPosition = longueurTotal - 1
+                            xCurseur = taille[0]
+                    temp = True
+                    temp2 = True
+
+                if doitBreak:
+                    break
+        else:
+            for c in enumerate(self.texte): #Générer le texte
+                tailleC = police.size(ligne + c[1])
+                if tailleC[0] <= self.ligneLongueurMax: #Si la ligne est pas trop longue
+                    if c[1] == "\n":
+                        if numLigne < self.ligneMax:
+                            imageLigne = police.render(ligne, True, self.texteCouleur)
+                            tailleY += imageLigne.get_size()[1]
+                            texteSurface.append(imageLigne)
+                            self.textes += ligne
+                            ligne = ""
+                            numLigne += 1
+                        else:
+                            doitBreak = True
+                    else:
+                        ligne += c[1]
+                else: #Sinon créer un saut de ligne
                     if numLigne < self.ligneMax:
                         imageLigne = police.render(ligne, True, self.texteCouleur)
                         tailleY += imageLigne.get_size()[1]
                         texteSurface.append(imageLigne)
                         self.textes += ligne
-                        ligne = ""
+                        ligne = c[1]
                         numLigne += 1
                     else:
                         doitBreak = True
-                else:
-                    ligne += c[1]
-            else: #Sinon créer un saut de ligne
-                if numLigne < self.ligneMax:
+
+                if c[0] == self.curseurPosition - 1:
+                    ligneCurseur = numLigne
+                    xCurseur = police.size(ligne)[0]
+                    temp = True
+
+                if c[0] == len(self.texte) - 1 or doitBreak:
                     imageLigne = police.render(ligne, True, self.texteCouleur)
                     tailleY += imageLigne.get_size()[1]
                     texteSurface.append(imageLigne)
-                    self.textes += ligne
-                    ligne = c[1]
-                    numLigne += 1
-                else:
-                    doitBreak = True
 
-            if c[0] == self.curseurPosition - 1:
-                ligneCurseur = numLigne
-                xCurseur = police.size(ligne)[0]
-
-            if c[0] == len(self.texte) - 1 or doitBreak:
-                imageLigne = police.render(ligne, True, self.texteCouleur)
-                tailleY += imageLigne.get_size()[1]
-                texteSurface.append(imageLigne)
-
-            if doitBreak:
-                break
+                if doitBreak:
+                    break
 
         if len(texteSurface) <= 0: #Si il n'y a pas de texte à générer
             texteSurface.append(police.render("", True, self.texteCouleur))
