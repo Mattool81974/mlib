@@ -1,4 +1,5 @@
 #Importation des bibliothèques nécessaires (pygame pour le fenêtre et sys pour le contrôle de l'application)
+from pyperclip import *
 from math import *
 import os
 from pygame import *
@@ -93,11 +94,11 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
     def get_focus(self): #Retourne si le widget est focus ou non
         return self.focus
 
-    def get_isFocused(self): #Retourne si le widget est clické pendant cette frame ou non
-        return self.isFocused
-
     def get_globalPosition(self):
         return self.globalPosition
+
+    def get_isFocused(self): #Retourne si le widget est clické pendant cette frame ou non
+        return self.isFocused
 
     def get_parent(self): #Retourne le parent du widget
         return self.parent
@@ -184,9 +185,10 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
 
 
 class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre principale
-    def __init__(self, fenetre, titre = "Fenêtre MGui", arrierePlanImage="", arrierePlanImageAlignement="GH", arrierePlanImageParSeconde=24, arrierePlanCouleur = (255, 255, 255, 1), curseurSurvol = SYSTEM_CURSOR_ARROW): #Constructeur qui prend la taille en paramètre
+    def __init__(self, fenetre, titre = "Fenêtre MGui", afficherFps = False, arrierePlanImage="", arrierePlanImageAlignement="GH", arrierePlanImageParSeconde=24, arrierePlanCouleur = (255, 255, 255, 1), curseurSurvol = SYSTEM_CURSOR_ARROW): #Constructeur qui prend la taille en paramètre
         self.toutLesElements = [] #Liste de tout les éléments de la fenêtre
         MWidget.__init__(self, (0, 0), fenetre.get_size(), None, arrierePlanCouleur, curseurSurvol, "Fenetre") #Constructeur parent
+        self.afficherFps = afficherFps
         self.arrierePlanImage = None
         self.arrierePlanImageAlignement = arrierePlanImageAlignement
         self.actuelFrameGif = 0 #Frame du gif actuel
@@ -204,6 +206,8 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         self.arrierePlanImageParSeconde = arrierePlanImageParSeconde #Vitesse du gif d'arrière plan en images par secondes
         self.arrierePlanImageParSecondeEcoule = 0 #Temps écoulé depuis la dernière update du gif
         self.caplockPressee = False #Savoir si le bouton pour bloquer les majuscule est pressé
+        self.ctrlDroitePressee = False #Savoir si le bouton controle droit est pressée
+        self.ctrlGauchePressee = False  #Savoir si le bouton controle gauche est pressée
         self.curseur = SYSTEM_CURSOR_ARROW #Curseur de l'application
         self._deltaTime = time_ns() #Variable tampon pour deltaTime
         self.deltaTime = 0 #Temps entre 2 frames
@@ -212,6 +216,7 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         self.fpsMoyen = 0 #Nombre de frames par secondes en moyenne
         self.fpsNb = 0 #Nombre d'actualisation des fps
         self.fpsNbFrame = 0 #Nombre de frame entre 2 actualisations de fps
+        self.positionSouris = mouse.get_pos()  # Stocker la position de la souris dans une variable
         self.set_titreFenetre(titre)
         self.shiftPressee = False #Savoir si le bouton pour les majuscule est pressé
         self.tempsDExecution = 0 #Temps d'éxécution depuis le dernier comptage des fps
@@ -267,7 +272,8 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
             self.fps = self.fpsNbFrame
             self.fpsNbFrame = 0
             self.fpsMoyen = (self.fpsMoyen + self.fps) / (2)
-            print("FPS/FPS Moyen:", str(self.fps) + "/" + str(self.fpsMoyen))
+            if self.afficherFps:
+                print("FPS/FPS Moyen:", str(self.fps) + "/" + str(self.fpsMoyen))
         
         self._deltaTime = time_ns() #Préparer le delta time pour le prochain affichage en utilisant _deltaTime
 
@@ -297,6 +303,12 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
                 if evnt.key == K_LSHIFT: #Si la touche pour les majuscules est pressée
                     self.shiftPressee = True
                     self.evenement.remove(evnt)
+                if evnt.key == K_LCTRL:  # Si la touche contrôle gauche est pressée
+                    self.ctrlGauchePressee = True
+                    self.evenement.remove(evnt)
+                if evnt.key == K_RCTRL:  # Si la touche contrôle gauche est pressée
+                    self.ctrlDroitePressee = True
+                    self.evenement.remove(evnt)
                 elif evnt.key == K_CAPSLOCK: #Si la touche pour bloquer les majuscule est pressé
                     if self.caplockPressee:
                         self.caplockPressee = False
@@ -306,6 +318,12 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
             elif evnt.type == KEYUP:
                 if evnt.key == K_LSHIFT: #Si la touche pour les majuscules n'est plus pressé
                     self.shiftPressee = False
+                    self.evenement.remove(evnt)
+                if evnt.key == K_LCTRL:  # Si la touche contrôle gauche n'est plus pressée
+                    self.ctrlGauchePressee = False
+                    self.evenement.remove(evnt)
+                if evnt.key == K_RCTRL:  # Si la touche contrôle gauche n'est plus pressée
+                    self.ctrlDroitePressee = False
                     self.evenement.remove(evnt)
 
         self.set_curseur(self.curseurSurvol) #Initialiser le curseur à une valeur par défaut
@@ -350,7 +368,7 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         return self.fpsMoyen
 
     def get_positionSouris(self): #Retourne la position de la souris
-        return self.fpsMoyen
+        return self.positionSouris
 
     def get_shiftPressee(self): #Retourne si la touche shift est préssé ou non
         return self.shiftPressee
@@ -465,6 +483,7 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         self.policeType = policeType
         self.texte = texte
         self.textes = texte.split("\n") #Texte split selon les sauts de lignes
+        self.textesCoupeParTaille = texte
         self.texteAlignement = texteAlignement
         self.texteCouleur = texteCouleur
         self.texteRect = [(0, 0, 0, 0)]
@@ -497,72 +516,125 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         if font.get_fonts().count(self.policeType) <= 0: #Vérification de la police
             self.policeType = "Arial"
         police = font.SysFont(self.policeType, self.policeTaille) #Création de la police
-        texteFinal  = self.texte
-        
-        offsetCurseur = 0 #Savoir à quel point le curseur devra être avancer selon les modifications apportées
-        if self.ligneLongueurMax != -1:
-            ligneTaille = 0 #Variable qui contient la taile de chaque lignes
-            nombreLigne = 0
-            self.texte = "" #Ré-initialisation pour préparer une modification potentielle
-            tailleTotal = 0 #Variable qui contient la taile total du texte
-            for c in enumerate(texteFinal): #Gérer la taille du texte
-                self.texte += c[1]
-                tailleTotal += 1
-                if c[1] == "\n":
-                    if nombreLigne < self.ligneMax - 1:
-                        ligneTaille = 0
-                        nombreLigne += 1
-                    else: #Si il y a trop de ligne
-                        self.texte = self.texte[0:len(self.texte) - 1]
-                        texteFinal = texteFinal[0:tailleTotal - 1]
-                        if self.curseurPosition > len(texteFinal) - (offsetCurseur):
-                            self.curseurPosition = len(texteFinal) - (offsetCurseur)
-                        break
-                else:
-                    ligneTaille += police.size(c[1])[0]
-                    if ligneTaille > self.ligneLongueurMax: #Si un saut de ligne est nécessaire
-                        if nombreLigne < self.ligneMax - 1:
-                            texteFinal = (texteFinal[0:tailleTotal-1] + "\n" + texteFinal[tailleTotal-1:len(texteFinal)])
-                            nombreLigne += 1
-                            tailleTotal += 1
-                            if c[0] <= self.curseurPosition:
-                                offsetCurseur += 1
-                            ligneTaille = 0
-                        else: #Si il y a trop de ligne
-                            self.texte = self.texte[0:len(self.texte) - 1]
-                            texteFinal = texteFinal[0:tailleTotal - 1]
-                            if self.curseurPosition > len(texteFinal) - (offsetCurseur):
-                                self.curseurPosition = len(texteFinal) - (offsetCurseur)
-                            break
-        self.textes = texteFinal.split("\n")
-        
-        buff = 0 #Variable temporaire pour placer le curseur
-        ligneCurseur = 0 #Variable qui stocke la ligne du curseur
-        tailleImageTexte = (0, 0)
-        texteSurface = [] #Variable qui contient toutes les surfaces du texte
-        tailleY = 0 #Variable qui contient la taille de tous les textes
-        for c in enumerate(self.textes): #Générer les surfaces pour les textes avec le curseur
-            if buff != -1:
-                    buff += len(c[1])
-            if self.curseurPosition <= buff:
-                i = 0 #Variable temporaire pour éviter des erreurs out of range
-                if c[0] > 0:
-                    i = buff - len(c[1])
-                posCurseur = (buff - i) - (buff-(self.curseurPosition+offsetCurseur))
-                imageTexte = police.render(c[1][0:posCurseur], True, (self.texteCouleur)) #Rendu du texte avec le curseur
-                xCurseur = imageTexte.get_size()[0]
-                imageTexte = police.render(c[1], True, (self.texteCouleur)) #Rendu du texte
-                texteSurface.append(imageTexte)
-                tailleY += imageTexte.get_size()[1]
-                buff = -1
-            else:
-                imageTexte = police.render(c[1], True, (self.texteCouleur)) #Rendu du texte
-                texteSurface.append(imageTexte)
-                tailleY += imageTexte.get_size()[1]
-                if buff != -1:
-                    ligneCurseur += 1
-            if buff != -1:
-                    buff += 1
+
+        ligneCurseur = 0  # Variable qui stocke la ligne du curseur
+        longueurTotal = 0 #Longueur totale du texte
+        texteSurface = []  # Variable qui contient toutes les surfaces du texte
+        tailleY = 0  # Variable qui contient la taille de tous les textes
+        temp = False #Variable temporaire pour savoir si la position du curseur a été attribué ou non
+        temp2 = False  # Variable temporaire secondaire pour savoir si la position du curseur a été attribué ou non
+
+        doitBreak = False
+        ligne = ""
+        numLigne = 0
+
+        self.textes = []
+
+        if self.curseurRepositionnementSouris and self.isFocused:
+            positionSouris = (self.fenetrePrincipale.get_positionSouris()[0] - (self.borduresLargeurs[3] + self.globalPosition[0]), self.fenetrePrincipale.get_positionSouris()[1] - (self.borduresLargeurs[0] + self.globalPosition[1]))
+            for c in enumerate(self.texte):  # Générer le texte
+                taille = police.size(ligne)
+                tailleC = police.size(ligne + c[1])
+                longueurTotal += 1
+                if positionSouris[0] < tailleC[0] and not temp2:
+                    self.curseurPosition = longueurTotal - 1
+                    temp2 = True
+                    xCurseur = tailleC[0]
+                if tailleC[0] <= self.ligneLongueurMax:  # Si la ligne est pas trop longue
+                    if c[1] == "\n":
+                        if numLigne < self.ligneMax:
+                            imageLigne = police.render(ligne, True, self.texteCouleur)
+                            tailleY += imageLigne.get_size()[1]
+                            texteSurface.append(imageLigne)
+                            self.textes.append(ligne)
+                            ligne = ""
+                            numLigne += 1
+                            if not temp:
+                                temp2 = False
+                        else:
+                            numLigne += 1
+                            doitBreak = True
+                    else:
+                        ligne += c[1]
+                else:  # Sinon créer un saut de ligne
+                    if numLigne < self.ligneMax:
+                        imageLigne = police.render(ligne, True, self.texteCouleur)
+                        tailleY += imageLigne.get_size()[1]
+                        texteSurface.append(imageLigne)
+                        self.textes.append(ligne)
+                        ligne = c[1]
+                        numLigne += 1
+                        if not temp:
+                            temp2 = False
+                    else:
+                        numLigne += 1
+                        doitBreak = True
+
+                if c[0] == len(self.texte) - 1 or doitBreak:
+                    self.textes.append(ligne)
+                    numLigne += 1
+                    imageLigne = police.render(ligne, True, self.texteCouleur)
+                    tailleY += imageLigne.get_size()[1]
+                    texteSurface.append(imageLigne)
+
+                if positionSouris[1] <= tailleY and not temp: #Si l'utilisateur a cliqué cette ligne
+                    ligneCurseur = numLigne
+                    if c[0] == len(self.texte) - 1:
+                        if positionSouris[0] > tailleC[0]:
+                            self.curseurPosition = longueurTotal
+                            xCurseur = tailleC[0]
+                    else:
+                        if positionSouris[0] > taille[0]:
+                            self.curseurPosition = longueurTotal - 1
+                            xCurseur = taille[0]
+                    temp = True
+                    temp2 = True
+
+                if doitBreak:
+                    break
+        else:
+            for c in enumerate(self.texte): #Générer le texte
+                tailleC = police.size(ligne + c[1])
+                if tailleC[0] <= self.ligneLongueurMax: #Si la ligne est pas trop longue
+                    if c[1] == "\n":
+                        if numLigne < self.ligneMax:
+                            imageLigne = police.render(ligne, True, self.texteCouleur)
+                            tailleY += imageLigne.get_size()[1]
+                            texteSurface.append(imageLigne)
+                            self.textes.append(ligne)
+                            ligne = ""
+                            numLigne += 1
+                        else:
+                            doitBreak = True
+                    else:
+                        ligne += c[1]
+                else: #Sinon créer un saut de ligne
+                    if numLigne < self.ligneMax:
+                        imageLigne = police.render(ligne, True, self.texteCouleur)
+                        tailleY += imageLigne.get_size()[1]
+                        texteSurface.append(imageLigne)
+                        self.textes.append(ligne)
+                        ligne = c[1]
+                        numLigne += 1
+                    else:
+                        doitBreak = True
+
+                if c[0] == self.curseurPosition - 1:
+                    ligneCurseur = numLigne
+                    xCurseur = police.size(ligne)[0]
+                    temp = True
+
+                if c[0] == len(self.texte) - 1 or doitBreak:
+                    imageLigne = police.render(ligne, True, self.texteCouleur)
+                    tailleY += imageLigne.get_size()[1]
+                    texteSurface.append(imageLigne)
+                    self.textes.append(ligne)
+
+                if doitBreak:
+                    break
+
+        if len(texteSurface) <= 0: #Si il n'y a pas de texte à générer
+            texteSurface.append(police.render("", True, self.texteCouleur))
             
         multiplier = 1
         xTexte = self.borduresLargeurs[3]
@@ -571,22 +643,22 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         if self.texteAlignement[1] == "C": #Calculer l'alignement y du 1er texte
             yTexte = self.taille[1]/2-tailleY/2
         elif self.texteAlignement[1] == "B":
-                yTexte = self.taille[1] - (self.borduresLargeurs[2] + c.get_size[1])
-                multiplier = -1
-            
+            yTexte = self.taille[1] - (self.borduresLargeurs[2] + tailleY)
+            multiplier = -1
+
         self.texteRect.clear() #Vider les coordonnées des textes
-        buff = 0 #Réutilisation de la variable buff
+        temp = 0 #Réutilisation de la variable temp
         for c in texteSurface: #Calculer les tailles de chaques texte
             if self.texteAlignement[0] == "C":
                 xTexte = self.taille[0]/2 - c.get_size()[0]/2
             elif self.texteAlignement[0] == "D":
                 xTexte = self.taille[0] - (self.borduresLargeurs[1] + c.get_size()[0])
              
-            if buff == ligneCurseur:
+            if temp == ligneCurseur: #Mettre à jour le curseur
                 xCurseur += xTexte
                 yCurseur = yTexte
                 hCurseur = c.get_size()[1]
-            buff += 1
+            temp += 1
                 
             surfaceF.blit(c, (xTexte, yTexte, c.get_size()[0], c.get_size()[1]))
             self.texteRect.append((xTexte, yTexte, c.get_size()[0], c.get_size()[1])) #Ajoute des coordonnées aux coordonnées de textes
@@ -594,7 +666,7 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
             
         if self.curseur and self.focus: #Afficher le curseur si nécessaire
             if self.curseurTempsDAffichageAffiche:
-                draw.line(surfaceF, (self.texteCouleur), (xCurseur, yCurseur), (xCurseur, yCurseur + hCurseur), self.curseurLargeur)
+                draw.line(surfaceF, self.texteCouleur, (xCurseur, yCurseur), (xCurseur, yCurseur + hCurseur), self.curseurLargeur)
             self.curseurTempsDAffichageEcoule += self.fenetrePrincipale.deltaTime
         else:
             self.curseurTempsDAffichageEcoule = -1
@@ -659,7 +731,7 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         self.curseurLargeur = curseurLargeur
     
     def set_curseurPosition(self, curseurPosition):
-        self.curseurPosition
+        self.curseurPosition = curseurPosition
 
     def set_curseurRepositionnementSouris(self, curseurRepositionnementSouris):
         self.curseurRepositionnementSouris = curseurRepositionnementSouris
@@ -739,25 +811,84 @@ class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée 
             for evnt in self.fenetrePrincipale.evenement: #Chercher les évènements du clavier
                 if evnt.type == KEYDOWN:
                     caractere = evnt.unicode #Obtenir le code unicode de la touche
+                    moveCurseur = len(caractere) #Stocker le mouvement du curseur
                     if evnt.key == K_BACKSPACE:
                         caractere = ""
                         if self.curseurPosition > 0:
                             self.texte = self.texte[0:self.curseurPosition-1] + self.texte[self.curseurPosition:len(self.texte)]
-                            self.curseurPosition -= 1
+                            moveCurseur = -1
                     elif evnt.key == K_TAB:
-                        caractere = "   "
+                        moveCurseur = 4
+                        caractere = "    "
                     elif evnt.key == K_RETURN:
+                        moveCurseur = 1
                         caractere = "\n"
                     elif evnt.key == K_LEFT:
+                        self.curseurTempsDAffichageAffiche = True
+                        self.curseurTempsDAffichageEcoule = 0
                         caractere = ""
-                        self.curseurPosition -= 1
+                        moveCurseur = -1
                     elif evnt.key == K_RIGHT:
+                        self.curseurTempsDAffichageAffiche = True
+                        self.curseurTempsDAffichageEcoule = 0
                         caractere = ""
-                        self.curseurPosition += 1
+                        moveCurseur = 1
+                    elif evnt.key == K_v and (self.fenetrePrincipale.ctrlDroitePressee or self.fenetrePrincipale.ctrlGauchePressee):
+                        caractere = paste()
+                        moveCurseur = len(caractere)
+                    elif evnt.key == K_UP:
+                        self.curseurTempsDAffichageAffiche = True
+                        self.curseurTempsDAffichageEcoule = 0
+                        dernierOffset = 0
+                        moveCurseur = 0
+                        caractere = ""
+                        tailleTotal = 0 #Taille totale du texte
+                        for c in enumerate(self.textes):
+                            offset = 0
+                            tailleTotal += len(c[1])
+                            if len(self.texte) > tailleTotal and self.texte[tailleTotal] == "\n":
+                                offset = 1
+                                tailleTotal += 1
+                            if self.curseurPosition + len(c[1]) == tailleTotal:
+                                tailleTotal += 1
+
+                            if tailleTotal > self.curseurPosition or c[0] == len(self.textes) - 1: #Si le curseur est dans la ligne étudié
+                                posCurseur = (len(c[1]) - ((tailleTotal - offset) - self.curseurPosition)) - offset #Calculé l'équivalent position du curseur
+                                if c[0] > 0:
+                                    if posCurseur > len(self.textes[c[0] - 1]): #Si le curseur est trop grand pour la ligne d'en haut
+                                        posCurseur = len(self.textes[c[0] - 1]) - offset
+                                    self.curseurPosition = (tailleTotal - (len(c[1]) + (len(self.textes[c[0] - 1]) + dernierOffset))) + posCurseur #Placé le curseur sur la ligne d'au dessus
+                                break
+                            elif tailleTotal == self.curseurPosition: #Si le curseur est à la fin de la ligne étudié
+                                self.curseurPosition = tailleTotal - len(c[1]) - (1 - offset)
+                                break
+                            dernierOffset = offset
+                    elif evnt.key == K_DOWN:
+                        self.curseurTempsDAffichageAffiche = True
+                        self.curseurTempsDAffichageEcoule = 0
+                        moveCurseur = 0
+                        caractere = ""
+                        tailleTotal = 0  # Taille totale du texte
+                        for c in enumerate(self.textes):
+                            offset = 0
+                            tailleTotal += len(c[1])
+                            if len(self.texte) > tailleTotal and self.texte[tailleTotal] == "\n":
+                                offset = 1
+                                tailleTotal += 1
+                            if tailleTotal > self.curseurPosition:  # Si le curseur est dans la ligne étudié
+                                posCurseur = (len(c[1]) - (tailleTotal - self.curseurPosition)) + offset  # Calculé l'équivalent position du curseur
+                                if c[0] < len(self.textes) - 1:
+                                    if posCurseur > len(self.textes[c[0] + 1]):  # Si le curseur est trop grand pour la ligne d'en bas
+                                        posCurseur = len(self.textes[c[0] + 1])
+                                    self.curseurPosition = tailleTotal + posCurseur  # Placé le curseur sur la ligne d'au dessous
+                                break
+                            elif tailleTotal == self.curseurPosition and len(self.textes) > c[0] + 1:  # Si le curseur est à la fin de la ligne étudié
+                                self.curseurPosition = tailleTotal + len(self.textes[c[0] + 1]) + offset
+                                break
                     if self.caracteresAutorises == "all" or self.caracteresAutorises.count(caractere) > 0: #Si le caractère est authorisé
                         if len(self.texte) + len(caractere) <= self.longueurMax or self.longueurMax < 0: #Si le texte n'est pas trop long
                             self.texte = self.texte[0:self.curseurPosition] + caractere + self.texte[self.curseurPosition:len(self.texte)] #Ajouter le caractère au texte
-                            self.curseurPosition += len(caractere)
+                            self.curseurPosition += moveCurseur
                     self.fenetrePrincipale.evenement.remove(evnt)
         else:
             curseurTempsDAffichageEcoule = -1
