@@ -1,4 +1,5 @@
 #Importation des bibliothèques nécessaires (pygame pour le fenêtre et sys pour le contrôle de l'application)
+from pyperclip import *
 from math import *
 import os
 from pygame import *
@@ -205,6 +206,8 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         self.arrierePlanImageParSeconde = arrierePlanImageParSeconde #Vitesse du gif d'arrière plan en images par secondes
         self.arrierePlanImageParSecondeEcoule = 0 #Temps écoulé depuis la dernière update du gif
         self.caplockPressee = False #Savoir si le bouton pour bloquer les majuscule est pressé
+        self.ctrlDroitePressee = False #Savoir si le bouton controle droit est pressée
+        self.ctrlGauchePressee = False  #Savoir si le bouton controle gauche est pressée
         self.curseur = SYSTEM_CURSOR_ARROW #Curseur de l'application
         self._deltaTime = time_ns() #Variable tampon pour deltaTime
         self.deltaTime = 0 #Temps entre 2 frames
@@ -300,6 +303,12 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
                 if evnt.key == K_LSHIFT: #Si la touche pour les majuscules est pressée
                     self.shiftPressee = True
                     self.evenement.remove(evnt)
+                if evnt.key == K_LCTRL:  # Si la touche contrôle gauche est pressée
+                    self.ctrlGauchePressee = True
+                    self.evenement.remove(evnt)
+                if evnt.key == K_RCTRL:  # Si la touche contrôle gauche est pressée
+                    self.ctrlDroitePressee = True
+                    self.evenement.remove(evnt)
                 elif evnt.key == K_CAPSLOCK: #Si la touche pour bloquer les majuscule est pressé
                     if self.caplockPressee:
                         self.caplockPressee = False
@@ -309,6 +318,12 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
             elif evnt.type == KEYUP:
                 if evnt.key == K_LSHIFT: #Si la touche pour les majuscules n'est plus pressé
                     self.shiftPressee = False
+                    self.evenement.remove(evnt)
+                if evnt.key == K_LCTRL:  # Si la touche contrôle gauche n'est plus pressée
+                    self.ctrlGauchePressee = False
+                    self.evenement.remove(evnt)
+                if evnt.key == K_RCTRL:  # Si la touche contrôle gauche n'est plus pressée
+                    self.ctrlDroitePressee = False
                     self.evenement.remove(evnt)
 
         self.set_curseur(self.curseurSurvol) #Initialiser le curseur à une valeur par défaut
@@ -818,6 +833,9 @@ class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée 
                         self.curseurTempsDAffichageEcoule = 0
                         caractere = ""
                         moveCurseur = 1
+                    elif evnt.key == K_v and (self.fenetrePrincipale.ctrlDroitePressee or self.fenetrePrincipale.ctrlGauchePressee):
+                        caractere = paste()
+                        moveCurseur = len(caractere)
                     elif evnt.key == K_UP:
                         self.curseurTempsDAffichageAffiche = True
                         self.curseurTempsDAffichageEcoule = 0
