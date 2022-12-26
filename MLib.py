@@ -184,9 +184,10 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
 
 
 class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre principale
-    def __init__(self, fenetre, titre = "Fenêtre MGui", arrierePlanImage="", arrierePlanImageAlignement="GH", arrierePlanImageParSeconde=24, arrierePlanCouleur = (255, 255, 255, 1), curseurSurvol = SYSTEM_CURSOR_ARROW): #Constructeur qui prend la taille en paramètre
+    def __init__(self, fenetre, titre = "Fenêtre MGui", afficherFps = False, arrierePlanImage="", arrierePlanImageAlignement="GH", arrierePlanImageParSeconde=24, arrierePlanCouleur = (255, 255, 255, 1), curseurSurvol = SYSTEM_CURSOR_ARROW): #Constructeur qui prend la taille en paramètre
         self.toutLesElements = [] #Liste de tout les éléments de la fenêtre
         MWidget.__init__(self, (0, 0), fenetre.get_size(), None, arrierePlanCouleur, curseurSurvol, "Fenetre") #Constructeur parent
+        self.afficherFps = afficherFps
         self.arrierePlanImage = None
         self.arrierePlanImageAlignement = arrierePlanImageAlignement
         self.actuelFrameGif = 0 #Frame du gif actuel
@@ -268,7 +269,8 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
             self.fps = self.fpsNbFrame
             self.fpsNbFrame = 0
             self.fpsMoyen = (self.fpsMoyen + self.fps) / (2)
-            print("FPS/FPS Moyen:", str(self.fps) + "/" + str(self.fpsMoyen))
+            if self.afficherFps:
+                print("FPS/FPS Moyen:", str(self.fps) + "/" + str(self.fpsMoyen))
         
         self._deltaTime = time_ns() #Préparer le delta time pour le prochain affichage en utilisant _deltaTime
 
@@ -819,27 +821,30 @@ class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée 
                     elif evnt.key == K_UP:
                         self.curseurTempsDAffichageAffiche = True
                         self.curseurTempsDAffichageEcoule = 0
+                        dernierOffset = 0
                         moveCurseur = 0
                         caractere = ""
                         tailleTotal = 0 #Taille totale du texte
                         for c in enumerate(self.textes):
-                            tailleTotal += len(c[1]) + 1
-                            if tailleTotal > self.curseurPosition: #Si le curseur est dans la ligne étudié
-                                offset = 0
-                                if self.texte[tailleTotal - len(c[1]) - 2] == "\n":
-                                    offset = 1
-                                posCurseur = (len(c[1]) - (tailleTotal - self.curseurPosition)) - offset #Calculé l'équivalent position du curseur
+                            offset = 0
+                            tailleTotal += len(c[1])
+                            if len(self.texte) > tailleTotal and self.texte[tailleTotal] == "\n":
+                                offset = 1
+                                tailleTotal += 1
+                            if self.curseurPosition + len(c[1]) == tailleTotal:
+                                tailleTotal += 1
+
+                            if tailleTotal > self.curseurPosition or c[0] == len(self.textes) - 1: #Si le curseur est dans la ligne étudié
+                                posCurseur = (len(c[1]) - ((tailleTotal - offset) - self.curseurPosition)) - offset #Calculé l'équivalent position du curseur
                                 if c[0] > 0:
-                                    if posCurseur > len(self.textes[c[0] - 1]) - 2: #Si le curseur est trop grand pour la ligne d'en haut
-                                        posCurseur = len(self.textes[c[0] - 1]) - 2
-                                    self.curseurPosition = (tailleTotal - (len(c[1]) + len(self.textes[c[0] - 1]))) + posCurseur #Placé le curseur sur la ligne d'au dessus
+                                    if posCurseur > len(self.textes[c[0] - 1]): #Si le curseur est trop grand pour la ligne d'en haut
+                                        posCurseur = len(self.textes[c[0] - 1]) - offset
+                                    self.curseurPosition = (tailleTotal - (len(c[1]) + (len(self.textes[c[0] - 1]) + dernierOffset))) + posCurseur #Placé le curseur sur la ligne d'au dessus
                                 break
                             elif tailleTotal == self.curseurPosition: #Si le curseur est à la fin de la ligne étudié
-                                offset = 0
-                                if self.texte[tailleTotal - 1] == "\n":
-                                    offset = 1
-                                self.curseurPosition = tailleTotal - len(c[1]) - offset
+                                self.curseurPosition = tailleTotal - len(c[1]) - (1 - offset)
                                 break
+                            dernierOffset = offset
                     elif evnt.key == K_DOWN:
                         self.curseurTempsDAffichageAffiche = True
                         self.curseurTempsDAffichageEcoule = 0
@@ -847,21 +852,19 @@ class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée 
                         caractere = ""
                         tailleTotal = 0  # Taille totale du texte
                         for c in enumerate(self.textes):
-                            tailleTotal += len(c[1]) + 1
+                            offset = 0
+                            tailleTotal += len(c[1])
+                            if len(self.texte) > tailleTotal and self.texte[tailleTotal] == "\n":
+                                offset = 1
+                                tailleTotal += 1
                             if tailleTotal > self.curseurPosition:  # Si le curseur est dans la ligne étudié
-                                offset = 0
-                                if self.texte[tailleTotal - 1] == "\n":
-                                    offset = 1
                                 posCurseur = (len(c[1]) - (tailleTotal - self.curseurPosition)) + offset  # Calculé l'équivalent position du curseur
                                 if c[0] < len(self.textes) - 1:
                                     if posCurseur > len(self.textes[c[0] + 1]):  # Si le curseur est trop grand pour la ligne d'en bas
                                         posCurseur = len(self.textes[c[0] + 1])
                                     self.curseurPosition = tailleTotal + posCurseur  # Placé le curseur sur la ligne d'au dessous
                                 break
-                            elif tailleTotal == self.curseurPosition:  # Si le curseur est à la fin de la ligne étudié
-                                offset = 0
-                                if self.texte[tailleTotal - 1] == "\n":
-                                    offset = 1
+                            elif tailleTotal == self.curseurPosition and len(self.textes) > c[0] + 1:  # Si le curseur est à la fin de la ligne étudié
                                 self.curseurPosition = tailleTotal + len(self.textes[c[0] + 1]) + offset
                                 break
                     if self.caracteresAutorises == "all" or self.caracteresAutorises.count(caractere) > 0: #Si le caractère est authorisé
