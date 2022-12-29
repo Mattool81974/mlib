@@ -426,9 +426,11 @@ class MBordure(MWidget): #Définition d'une représentant un widget avec une bor
         self.borduresRayons = borduresRayons
         self.bordureCouleur = bordureCouleur
     def _renderBeforeHierarchy(self, surface): #Ré-implémentation de la fonction pour afficher la bordure
-        surface.fill((0, 0, 0, 0))
-        draw.rect(surface, self.bordureCouleur, (0, 0, self.taille[0], self.taille[1]), border_bottom_left_radius=self.borduresRayons[2], border_top_left_radius=self.borduresRayons[3], border_bottom_right_radius=self.borduresRayons[1], border_top_right_radius=self.borduresRayons[0]) #Dessiner la bordure
-        draw.rect(surface, self.arrierePlanCouleur, (self.borduresLargeurs[3], self.borduresLargeurs[0], self.taille[0] - (self.borduresLargeurs[1] + self.borduresLargeurs[3]), self.taille[1] - (self.borduresLargeurs[2] + self.borduresLargeurs[0])), border_bottom_left_radius=self.borduresRayons[2], border_top_left_radius=self.borduresRayons[3], border_bottom_right_radius=self.borduresRayons[1], border_top_right_radius=self.borduresRayons[0]) #Dessiner l'intèrieur de la bordure
+        surfaceBordure = Surface(self.taille, SRCALPHA).convert_alpha() #Création de l'image qui contient la bordure
+        surfaceBordure.fill((0, 0, 0, 0))
+        draw.rect(surfaceBordure, self.bordureCouleur, (0, 0, self.taille[0], self.taille[1]), border_bottom_left_radius=self.borduresRayons[2], border_top_left_radius=self.borduresRayons[3], border_bottom_right_radius=self.borduresRayons[1], border_top_right_radius=self.borduresRayons[0]) #Dessiner la bordure
+        draw.rect(surfaceBordure, self.arrierePlanCouleur, (self.borduresLargeurs[3], self.borduresLargeurs[0], self.taille[0] - (self.borduresLargeurs[1] + self.borduresLargeurs[3]), self.taille[1] - (self.borduresLargeurs[2] + self.borduresLargeurs[0])), border_bottom_left_radius=self.borduresRayons[2], border_top_left_radius=self.borduresRayons[3], border_bottom_right_radius=self.borduresRayons[1], border_top_right_radius=self.borduresRayons[0]) #Dessiner l'intèrieur de la bordure
+        surface.blit(surfaceBordure, (0, 0, self.taille[0], self.taille[1])) #Coller la bordure sur la surface
         return surface
 
     def get_bordure(self, i = -1): #Retourne la largeur de la bordure i
@@ -900,3 +902,56 @@ class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée 
 
     def set_caracteresAutorises(self, caracteresAutorises):
         self.caracteresAutorises = caracteresAutorises
+        
+class MImage(MBordure): #Définition d'une classe widget représentant une image
+    def __init__(self, imageLien, position, taille, parent, imageAlignement="CC", bordureLargeur = 2, bordureCouleur = (0, 0, 0), bordureRayon = 0, borduresLargeurs = [None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, type="Image"):
+        MBordure.__init__(self, position, taille, parent, bordureLargeur, bordureCouleur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, type) #Appel du constructeur parent
+        self.imageAlignement = imageAlignement
+        self.imageLien = imageLien
+        self._image = image.load(self.imageLien)
+        self._imageShowed = image.load(self.imageLien)
+        self._ancienneImageTaille = self._imageShowed.get_size()
+    def _renderBeforeHierarchy(self, surface): #Fonction réimplémenter de MWidget
+        xImage = self.borduresLargeurs[3] #Position x de l'image
+        wImage = 1 #Taux d'aggrandissement de l'image dans sa largeur
+        hImage = 1 #Taux d'aggrandissement de l'image dans sa hauteur
+        if self.imageAlignement[0] == "C": #Centrer
+            xImage = -self._image.get_size()[0]/2 + self.taille[0] / 2
+        elif self.imageAlignement[0] == "D": #Vers la droite
+            xImage = (-self._image.get_size()[0]) + self.taille[0] - self.borduresLargeurs[1]
+        elif self.imageAlignement[0] == "J":
+            wImage = (self.taille[0] - (self.borduresLargeurs[0] + self.borduresLargeurs[2]))/self._image.get_size()[0]
+            
+        yImage = self.borduresLargeurs[0] #Position y de l'image
+        if self.imageAlignement[1] == "C": #Centrer
+            yImage = -self._image.get_size()[1]/2 + self.taille[1] / 2
+        elif self.imageAlignement[1] == "B": #Vers la droite
+            yImage = (-self._image.get_size()[1]) + self.taille[1] - self.borduresLargeurs[2]
+        elif self.imageAlignement[1] == "J":
+            hImage = (self.taille[1] - (self.borduresLargeurs[1] + self.borduresLargeurs[3]))/self._image.get_size()[1]
+            
+        if wImage * self._image.get_size()[0] != self._ancienneImageTaille[0] or hImage * self._image.get_size()[1] != self._ancienneImageTaille[1]: #Si modification nécessaire
+            self._imageShowed = transform.scale(self._image, (wImage*self._image.get_size()[0], hImage*self._image.get_size()[1]))
+            
+        surface.blit(self._imageShowed, (xImage, yImage, self.taille[0] - (self.borduresLargeurs[3] + self.borduresLargeurs[1]), self.taille[1] - (self.borduresLargeurs[2] + self.borduresLargeurs[0]))) #Dessiner l'image sur la surface
+        
+        surface = super()._renderBeforeHierarchy(surface) #Dessiner la bordure
+        
+        self._ancienneImageTaille = self._imageShowed.get_size() #Actualiser ancienneTaille pour la prochaine itération de la fonction
+        
+        return surface
+    
+    def get_imageAlignement(self): #Retourne l'alignement de l'image
+        return self.imageAlignement
+    
+    def get_imageLien(self): #Fonction permettant de retourne le lien de l'image
+        return self.imageLien
+    
+    def set_imageAlignement(self, imageAlignement): #Modifie l'alignement de l'image
+        self.imageAlignement = imageAlignement
+    
+    def set_imageLien(self, imageLien, forcer = False): #Fonction permettant de modifier le lien de l'image
+        if imageLien != self.imageLien or forcer:
+            self.imageLien = imageLien
+            self._image = image.load(self.imageLien)
+            self._imageShowed = image.load(self.imageLien)
