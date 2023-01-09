@@ -1,4 +1,5 @@
 #Importation des bibliothèques nécessaires (pygame pour le fenêtre et sys pour le contrôle de l'application)
+from PIL import Image
 from pyperclip import *
 from math import *
 import os
@@ -12,6 +13,23 @@ ALPHA_UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 ALPHA_LOWER = "abcdefghijklmnopqrstuvwxyz"
 NUMERICS = "1234567890"
 SYMBOLS_KEYPAD_LITTLE = " &é\"'(-è_çà)=^$*ù!:;,~#}{[|`\\^@]¤"
+
+def fichierInfo(fichier: str, type: str): #Obtenir des informations sur un fichier
+    fichier.replace("\\", "/") #Formater le lien du fichier
+    if len(fichier) > 0:
+        if fichier[0] == "\"": #Retirez des guillemets au début et à la fin du lien
+            fichier = fichier[1:-1]+ fichier[-1]
+        if fichier[-1] == "\"":
+            fichier = fichier[0:-1]
+    extension = "" #Extension du fichier
+    imageTaille = (-1, -1) #Taille de l'image si le fichier est un image
+    if os.path.exists(fichier): #Si il existe
+        extension = fichier.split(".")[-1]
+        if type == "Image" and (extension == "png" or extension == "jpg"):  # Caractéristiques images
+            image = Image.open(fichier)
+            imageTaille = image.size
+    retour = {"Existe": os.path.exists(fichier), "Extension": extension, "LienFormate": fichier, "ImageTaille": imageTaille}
+    return retour
 
 def strAlphaUpper(strC): #Savoir si le str est entièrement consitué de lettre de l'alphabet en majuscule
     for c in strC:
@@ -292,7 +310,7 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
                 j = 0 #Variable pour vérifier le nombre d'enfant
                 while j < len(focus.enfant): #Chercher le widget focus (le plus petit widget et le plus en avant présent sur la route de la souris)
                     i = focus.enfant[j]
-                    if i.get_globalPosition()[0] < self.positionSouris[0] and self.positionSouris[0] < i.get_globalPosition()[0] + i.get_taille()[0] and i.get_globalPosition()[1] < self.positionSouris[1] and self.positionSouris[1] < i.get_globalPosition()[1] + i.get_taille()[1]:
+                    if i.get_visible() and i.get_globalPosition()[0] < self.positionSouris[0] and self.positionSouris[0] < i.get_globalPosition()[0] + i.get_taille()[0] and i.get_globalPosition()[1] < self.positionSouris[1] and self.positionSouris[1] < i.get_globalPosition()[1] + i.get_taille()[1]:
                         focus = i
                         j = -1
                     j += 1
@@ -660,6 +678,8 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
                 xCurseur += xTexte
                 yCurseur = yTexte
                 hCurseur = c.get_size()[1]
+                if tailleY == 0:
+                    yCurseur = yTexte - hCurseur/2
             temp += 1
                 
             surfaceF.blit(c, (xTexte, yTexte, c.get_size()[0], c.get_size()[1]))
@@ -908,36 +928,60 @@ class MImage(MBordure): #Définition d'une classe widget représentant une image
         MBordure.__init__(self, position, taille, parent, bordureLargeur, bordureCouleur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, type) #Appel du constructeur parent
         self.imageAlignement = imageAlignement
         self.imageLien = imageLien
-        self._image = image.load(self.imageLien)
-        self._imageShowed = image.load(self.imageLien)
-        self._ancienneImageTaille = self._imageShowed.get_size()
+        if imageLien != "":
+            self._image = image.load(self.imageLien)
+            self._imageShowed = image.load(self.imageLien)
+            self._ancienneImageTaille = self._imageShowed.get_size()
     def _renderBeforeHierarchy(self, surface): #Fonction réimplémenter de MWidget
-        xImage = self.borduresLargeurs[3] #Position x de l'image
-        wImage = 1 #Taux d'aggrandissement de l'image dans sa largeur
-        hImage = 1 #Taux d'aggrandissement de l'image dans sa hauteur
-        if self.imageAlignement[0] == "C": #Centrer
-            xImage = -self._image.get_size()[0]/2 + self.taille[0] / 2
-        elif self.imageAlignement[0] == "D": #Vers la droite
-            xImage = (-self._image.get_size()[0]) + self.taille[0] - self.borduresLargeurs[1]
-        elif self.imageAlignement[0] == "J":
-            wImage = (self.taille[0] - (self.borduresLargeurs[0] + self.borduresLargeurs[2]))/self._image.get_size()[0]
+        if self.imageLien != "":
+            xImage = self.borduresLargeurs[3] #Position x de l'image
+            yImage = self.borduresLargeurs[0] #Position y de l'image
+            wImage = 1 #Taux d'aggrandissement de l'image dans sa largeur
+            hImage = 1 #Taux d'aggrandissement de l'image dans sa hauteur
+            if self.imageAlignement[0] == "F": #Rentrer
+                ratioConteneur = (self.taille[0] - (self.borduresLargeurs[1] + self.borduresLargeurs[3]))/(self.taille[1] - (self.borduresLargeurs[0] + self.borduresLargeurs[2])) #Ratio du widget
+                ratioImage = self._image.get_size()[0]/self._image.get_size()[1] #Ratio de l'image
+                if ratioImage > ratioConteneur:
+                    wImage = (self.taille[0] - (self.borduresLargeurs[1] + self.borduresLargeurs[3]))/self._image.get_size()[0]
+                    hImage = wImage
+                else:
+                    wImage = (self.taille[1] - (self.borduresLargeurs[0] + self.borduresLargeurs[2]))/self._image.get_size()[1]
+                    hImage = wImage
+                
+                if self.imageAlignement[1] == "C": #La position de l'image
+                    if ratioImage > ratioConteneur:
+                        yImage = self.taille[1]/2 - (hImage*self._image.get_size()[1])/2
+                    else:
+                        xImage = self.taille[0]/2 - (wImage*self._image.get_size()[0])/2
+                elif self.imageAlignement[1] == "D" or self.imageAlignement[1] == "B":
+                    if ratioImage > ratioConteneur:
+                        yImage = (self.taille[1] - self.borduresLargeurs[2]) - (hImage*self._image.get_size()[1])
+                    else:
+                        xImage = (self.taille[0] - self.borduresLargeurs[1]) - (wImage*self._image.get_size()[0])
+            else:
+                if self.imageAlignement[0] == "C": #Centrer
+                    xImage = -self._image.get_size()[0]/2 + self.taille[0] / 2
+                elif self.imageAlignement[0] == "D": #Vers la droite
+                    xImage = (-self._image.get_size()[0]) + self.taille[0] - self.borduresLargeurs[1]
+                elif self.imageAlignement[0] == "J":
+                    wImage = (self.taille[0] - (self.borduresLargeurs[0] + self.borduresLargeurs[2]))/self._image.get_size()[0]
             
-        yImage = self.borduresLargeurs[0] #Position y de l'image
-        if self.imageAlignement[1] == "C": #Centrer
-            yImage = -self._image.get_size()[1]/2 + self.taille[1] / 2
-        elif self.imageAlignement[1] == "B": #Vers la droite
-            yImage = (-self._image.get_size()[1]) + self.taille[1] - self.borduresLargeurs[2]
-        elif self.imageAlignement[1] == "J":
-            hImage = (self.taille[1] - (self.borduresLargeurs[1] + self.borduresLargeurs[3]))/self._image.get_size()[1]
+                yImage = self.borduresLargeurs[0] #Position y de l'image
+                if self.imageAlignement[1] == "C": #Centrer
+                    yImage = -self._image.get_size()[1]/2 + self.taille[1] / 2
+                elif self.imageAlignement[1] == "B": #Vers la droite
+                    yImage = (-self._image.get_size()[1]) + self.taille[1] - self.borduresLargeurs[2]
+                elif self.imageAlignement[1] == "J":
+                    hImage = (self.taille[1] - (self.borduresLargeurs[1] + self.borduresLargeurs[3]))/self._image.get_size()[1]
             
-        if wImage * self._image.get_size()[0] != self._ancienneImageTaille[0] or hImage * self._image.get_size()[1] != self._ancienneImageTaille[1]: #Si modification nécessaire
-            self._imageShowed = transform.scale(self._image, (wImage*self._image.get_size()[0], hImage*self._image.get_size()[1]))
+            if wImage * self._image.get_size()[0] != self._ancienneImageTaille[0] or hImage * self._image.get_size()[1] != self._ancienneImageTaille[1]: #Si modification nécessaire
+                self._imageShowed = transform.scale(self._image, (wImage*self._image.get_size()[0], hImage*self._image.get_size()[1]))
             
-        surface.blit(self._imageShowed, (xImage, yImage, self.taille[0] - (self.borduresLargeurs[3] + self.borduresLargeurs[1]), self.taille[1] - (self.borduresLargeurs[2] + self.borduresLargeurs[0]))) #Dessiner l'image sur la surface
-        
+            surface.blit(self._imageShowed, (xImage, yImage, self.taille[0] - (self.borduresLargeurs[3] + self.borduresLargeurs[1]), self.taille[1] - (self.borduresLargeurs[2] + self.borduresLargeurs[0]))) #Dessiner l'image sur la surface
+
+            self._ancienneImageTaille = self._imageShowed.get_size()  # Actualiser ancienneTaille pour la prochaine itération de la fonction
+
         surface = super()._renderBeforeHierarchy(surface) #Dessiner la bordure
-        
-        self._ancienneImageTaille = self._imageShowed.get_size() #Actualiser ancienneTaille pour la prochaine itération de la fonction
         
         return surface
     
@@ -951,7 +995,13 @@ class MImage(MBordure): #Définition d'une classe widget représentant une image
         self.imageAlignement = imageAlignement
     
     def set_imageLien(self, imageLien, forcer = False): #Fonction permettant de modifier le lien de l'image
-        if imageLien != self.imageLien or forcer:
+        if imageLien == "":
             self.imageLien = imageLien
-            self._image = image.load(self.imageLien)
-            self._imageShowed = image.load(self.imageLien)
+            self._image = None
+            self._imageShowed = None
+        else:
+            if imageLien != self.imageLien or forcer:
+                self.imageLien = imageLien
+                self._image = image.load(self.imageLien)
+                self._imageShowed = image.load(self.imageLien)
+                self._ancienneImageTaille = (0, 0)
