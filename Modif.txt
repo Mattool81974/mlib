@@ -1,0 +1,3 @@
+Ajout frameEvenement dans mfenetre pour gérer les évènements
+Ajout frameGraphique dans mfenetre pour gérer le rendu  et les fps
+Modification frame pour correspondre avec frameEvenement et frameGraphique
