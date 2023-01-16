@@ -1,4 +1,0 @@
-Ajout frameEvenement dans mfenetre pour gérer les évènements
-Ajout frameGraphique dans mfenetre pour gérer le rendu  et les fps
-Correction test vide curseur 0 mtexte police différente
-Modification frame pour correspondre avec frameEvenement et frameGraphique
