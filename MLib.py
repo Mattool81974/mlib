@@ -688,7 +688,6 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
                     yCurseur = yTexte - hCurseur/2
                 if self.texteAlignement[1] == "B" and len(self.texte) <= 0:
                     yCurseur = yTexte - hCurseur
-                print(hCurseur, yCurseur, tailleY, len(self.texte), self.curseurPosition)
             temp += 1
                 
             surfaceF.blit(c, (xTexte, yTexte, c.get_size()[0], c.get_size()[1]))
