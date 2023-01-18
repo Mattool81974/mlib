@@ -280,21 +280,11 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         return surface
 
     def frame(self): #Actualise une frame de la fenêtre
-        self.deltaTime = (time_ns() - self._deltaTime)/pow(10, 9) #Actualiser le delta time en secondes
-        self.tempsDExecution += self.deltaTime #Actualiser le temps d'éxécution
-        self.fpsNbFrame += 1
+        self.frameEvenement() #Appel de la fonction pour gérer les évènements
 
-        if self.tempsDExecution >= 1: #Actualisation des fps
-            self.tempsDExecution -= floor(self.tempsDExecution)
-            self.fpsNb += 1
-            self.fps = self.fpsNbFrame
-            self.fpsNbFrame = 0
-            self.fpsMoyen = (self.fpsMoyen + self.fps) / (2)
-            if self.afficherFps:
-                print("FPS/FPS Moyen:", str(self.fps) + "/" + str(self.fpsMoyen))
+        self.frameGraphique() #Appel de la fonction pour gérer les évènements graphiques
         
-        self._deltaTime = time_ns() #Préparer le delta time pour le prochain affichage en utilisant _deltaTime
-
+    def frameEvenement(self): #Fonction qui permet de gérer les évènements dans MLib
         self.positionSouris = mouse.get_pos() #Stocker la position de la souris dans une variable
 
         for i in self.toutLesElements:  # Ré-initialiser le focus de frame de chaque éléments
@@ -343,11 +333,27 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
                 if evnt.key == K_RCTRL:  # Si la touche contrôle gauche n'est plus pressée
                     self.ctrlDroitePressee = False
                     self.evenement.remove(evnt)
-
+                    
+    def frameGraphique(self): #Gérer les graphismes dans MLib
         self.set_curseur(self.curseurSurvol) #Initialiser le curseur à une valeur par défaut
         img = self._render()
         self.fenetre.blit(img, self.get_rect())
         mouse.set_cursor(self.curseur)
+        
+        self.deltaTime = (time_ns() - self._deltaTime)/pow(10, 9) #Actualiser le delta time en secondes
+        self.tempsDExecution += self.deltaTime #Actualiser le temps d'éxécution
+        self.fpsNbFrame += 1
+
+        if self.tempsDExecution >= 1: #Actualisation des fps
+            self.tempsDExecution -= floor(self.tempsDExecution)
+            self.fpsNb += 1
+            self.fps = self.fpsNbFrame
+            self.fpsNbFrame = 0
+            self.fpsMoyen = (self.fpsMoyen + self.fps) / (2)
+            if self.afficherFps:
+                print("FPS/FPS Moyen:", str(self.fps) + "/" + str(self.fpsMoyen))
+        
+        self._deltaTime = time_ns() #Préparer le delta time pour le prochain affichage en utilisant _deltaTime
 
     def get_actuelFrameGif(self): #Retourne la frame actuel si l'image d'arriere plan est un gif
         return self.actuelFrameGif
@@ -678,8 +684,11 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
                 xCurseur += xTexte
                 yCurseur = yTexte
                 hCurseur = c.get_size()[1]
-                if tailleY == 0:
+                if self.texteAlignement[1] != "H" and tailleY == 0:
                     yCurseur = yTexte - hCurseur/2
+                if self.texteAlignement[1] == "B" and len(self.texte) <= 0:
+                    yCurseur = yTexte - hCurseur
+                print(hCurseur, yCurseur, tailleY, len(self.texte), self.curseurPosition)
             temp += 1
                 
             surfaceF.blit(c, (xTexte, yTexte, c.get_size()[0], c.get_size()[1]))
