@@ -64,6 +64,7 @@ def strContent(strC): #Savoir si le str contient de l'alphabet, nombre ...
 
 class MWidget: #Définition d'une classe représentant tout les widgets dans la GUI
     def __init__(self, position, taille, parent = None, arrierePlanCouleur = (255, 255, 255, 1), curseurSurvol = SYSTEM_CURSOR_ARROW, type = "Widget"): #Constructeur d'un widget avec comme paramètre la taille
+        self.actualisationGraphique = True #Booléen contenant si le widget
         self.arrierePlanCouleur = arrierePlanCouleur
         self.curseurSurvol = curseurSurvol
         self.enfant = [] #Attributs de type liste comprenant tout les enfants de la fenêtre
@@ -96,6 +97,9 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
     def __enleverEnfant(self, enfant): #Enlever un enfant à ce widget (fonction privée)
         if self.enfant.count(enfant) > 0:
             self.enfant.remove(enfant)
+
+    def get_actualisationGraphique(self): #Retourne si une actualisation graphique est nécessaire
+        return self.actualisationGraphique
 
     def get_arrierePlanCouleur(self): #Retourne la couleur d'arrière plan du widget
         return self.arrierePlanCouleur
@@ -147,6 +151,16 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
             self.enfant.remove(enfant)
         self.enfant.append(enfant)
 
+    def _evenement(self): #Méthode a hérite qui gère les évènements
+        return False
+
+    def _evenementHandle(self): #Méthode qui prend en compte les évènements du widget
+        self.actualisationGraphique = self._evenement()
+        for surface in self.enfant: #Application des évènements des enfants
+            if surface._evenementHandle():
+                self.actualisationGraphique = True
+        return self.actualisationGraphique #Retour du final de l'évènement
+
     def _render(self): #Méthode permettant de renvoyer une image de la fenêtre
         retour = Surface(self.taille, SRCALPHA).convert_alpha() #Création de l'image qui sera retourné à la fin
         retour.fill(self.arrierePlanCouleur)
@@ -155,8 +169,9 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
         retour = self._renderBeforeHierarchy(retour) #Appel de la fonction pour appliquer un render avec celle des widgets enfants
         for surface in self.enfant: #Application des render des enfants
             if surface.visible: #Si l'enfant est visible
-                img = surface._render()
-                retour.blit(img, surface.get_rect())
+                if surface.get_actualisationGraphique():
+                    img = surface._render()
+                    retour.blit(img, surface.get_rect())
         retour = self._renderAfterHierarchy(retour) #Appel de la fonction pour appliquer un render après celle des widgets enfants
         return retour
 
@@ -165,6 +180,9 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
 
     def _renderBeforeHierarchy(self, surface): #Méthode permettant de modifier le rendu de render() avant que la hiérarchie soit appliqué, à ré-implémenter
         return surface
+
+    def set_actualisationGraphique(self, actualisationGraphique): #Change si une actualisation graphique est nécessaire
+        self.actualisationGraphique = actualisationGraphique
 
     def set_arrierePlanCouleur(self, couleur): #Change la couleur d'arrière plan du widget
         self.couleur = couleur

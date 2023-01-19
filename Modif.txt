@@ -1,0 +1,4 @@
+ajout de actualisationGraphique a mwidget pour savoir si actualisation graphique nécessaire avec set et get
+ajout de _evenement() dans mwidget a hérité qui retourne si la fenêtre doit être actualisé ou non
+ajout de _evenementHandle() dans mwidget pour gérer les évènements de manières globales et les appliquer
+dans _rbh render que si actualisationGraphique de l'enfant
