@@ -64,7 +64,8 @@ def strContent(strC): #Savoir si le str contient de l'alphabet, nombre ...
 
 class MWidget: #Définition d'une classe représentant tout les widgets dans la GUI
     def __init__(self, position, taille, parent = None, arrierePlanCouleur = (255, 255, 255, 1), curseurSurvol = SYSTEM_CURSOR_ARROW, type = "Widget"): #Constructeur d'un widget avec comme paramètre la taille
-        self.actualisationGraphique = True #Booléen contenant si le widget
+        self.actualisationGraphique = 2 #Booléen contenant si le widget
+        self.ancienneSurface = None #Ancienne image générer dans _render()
         self.arrierePlanCouleur = arrierePlanCouleur
         self.curseurSurvol = curseurSurvol
         self.enfant = [] #Attributs de type liste comprenant tout les enfants de la fenêtre
@@ -100,6 +101,9 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
 
     def get_actualisationGraphique(self): #Retourne si une actualisation graphique est nécessaire
         return self.actualisationGraphique
+
+    def get_ancienneSurface(self): #Retourne la dernière surface générée par _render()
+        return self.ancienneSurface
 
     def get_arrierePlanCouleur(self): #Retourne la couleur d'arrière plan du widget
         return self.arrierePlanCouleur
@@ -152,7 +156,9 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
         self.enfant.append(enfant)
 
     def _evenement(self): #Méthode a hérite qui gère les évènements
-        return False
+        if self.fenetrePrincipale.tempsDExecution <= 0:
+            return 2
+        return 0
 
     def _evenementHandle(self): #Méthode qui prend en compte les évènements du widget
         self.actualisationGraphique = self._evenement()
@@ -167,13 +173,22 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
         if self.get_survol():
             self.fenetrePrincipale.set_curseur(self.curseurSurvol)
         retour = self._renderBeforeHierarchy(retour) #Appel de la fonction pour appliquer un render avec celle des widgets enfants
+        self._renderEnfant(retour)
+        retour = self._renderAfterHierarchy(retour) #Appel de la fonction pour appliquer un render après celle des widgets enfants
+        self.ancienneSurface = retour
+        return retour
+
+    def _renderEnfant(self, retour): # Méthode permettant de renvoyer l'image de la fenêtre avec les enfants
         for surface in self.enfant: #Application des render des enfants
             if surface.visible: #Si l'enfant est visible
-                if surface.get_actualisationGraphique():
+                if surface.get_actualisationGraphique() == 2: #Si actualisation nécessaire
                     img = surface._render()
                     retour.blit(img, surface.get_rect())
-        retour = self._renderAfterHierarchy(retour) #Appel de la fonction pour appliquer un render après celle des widgets enfants
-        return retour
+                elif surface.get_actualisationGraphique() == 1: #Si actualisation des enfants nécessaire
+                    img = surface._render()
+                    retour.blit(img, surface.get_rect())
+                else:
+                    retour.blit(surface.ancienneSurface, surface.get_rect())
 
     def _renderAfterHierarchy(self, surface): #Méthode permettant de modifier le rendu de render() avant que la hiérarchie soit appliqué, à ré-implémenter
         return surface
@@ -221,10 +236,11 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
 
 
 class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre principale
-    def __init__(self, fenetre, titre = "Fenêtre MGui", afficherFps = False, arrierePlanImage="", arrierePlanImageAlignement="GH", arrierePlanImageParSeconde=24, arrierePlanCouleur = (255, 255, 255, 1), curseurSurvol = SYSTEM_CURSOR_ARROW): #Constructeur qui prend la taille en paramètre
+    def __init__(self, fenetre, titre = "Fenêtre MGui", afficherEps = False, afficherFps = False, arrierePlanImage="", arrierePlanImageAlignement="GH", arrierePlanImageParSeconde=24, arrierePlanCouleur = (255, 255, 255, 1), curseurSurvol = SYSTEM_CURSOR_ARROW): #Constructeur qui prend la taille en paramètre
         self.toutLesElements = [] #Liste de tout les éléments de la fenêtre
         MWidget.__init__(self, (0, 0), fenetre.get_size(), None, arrierePlanCouleur, curseurSurvol, "Fenetre") #Constructeur parent
         self.afficherFps = afficherFps
+        self.afficherEps = afficherEps
         self.arrierePlanImage = None
         self.arrierePlanImageAlignement = arrierePlanImageAlignement
         self.actuelFrameGif = 0 #Frame du gif actuel
@@ -245,9 +261,15 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         self.ctrlDroitePressee = False #Savoir si le bouton controle droit est pressée
         self.ctrlGauchePressee = False  #Savoir si le bouton controle gauche est pressée
         self.curseur = SYSTEM_CURSOR_ARROW #Curseur de l'application
-        self._deltaTime = time_ns() #Variable tampon pour deltaTime
+        self._deltaTime = time_ns() #Variable temporaire pour deltaTime
+        self._deltaTimeEps = 0  # Variable temporaire pour deltaTimeEps
         self.deltaTime = 0 #Temps entre 2 frames
+        self.deltaTimeEps = 0 #Temps entre 2 évènements
         self.fenetre = fenetre
+        self.eps = 0  # Nombre d'évènements par secondes
+        self.epsMoyen = 0  # Nombre d'évènements par secondes en moyenne
+        self.epsNb = 0  # Nombre d'actualisation des eps
+        self.epsNbFrame = 0  # Nombre de frame entre 2 actualisations de eps
         self.fps = 0 #Nombre de frames par secondes
         self.fpsMoyen = 0 #Nombre de frames par secondes en moyenne
         self.fpsNb = 0 #Nombre d'actualisation des fps
@@ -256,6 +278,8 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         self.set_titreFenetre(titre)
         self.shiftPressee = False #Savoir si le bouton pour les majuscule est pressé
         self.tempsDExecution = 0 #Temps d'éxécution depuis le dernier comptage des fps
+        self.tempsDExecutionEps = 0  # Temps d'éxécution depuis le dernier comptage des eps
+        self.tempsDExecutionTotal = 0  # Temps d'éxécution depuis le dernier comptage des fps
 
     def _nouvelleElement(self, element): #Ajouter un élément à la fenêtre
         if self.toutLesElements.count(element) <= 0:
@@ -304,6 +328,7 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         
     def frameEvenement(self): #Fonction qui permet de gérer les évènements dans MLib
         self.positionSouris = mouse.get_pos() #Stocker la position de la souris dans une variable
+        self.tempsDExecutionTotal += self.deltaTime  # Actualiser le temps d'éxécution total
 
         for i in self.toutLesElements:  # Ré-initialiser le focus de frame de chaque éléments
             i.isFocused = False
@@ -351,6 +376,23 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
                 if evnt.key == K_RCTRL:  # Si la touche contrôle gauche n'est plus pressée
                     self.ctrlDroitePressee = False
                     self.evenement.remove(evnt)
+
+        self._evenementHandle()
+
+        self.deltaTimeEps = (time_ns() - self._deltaTimeEps) / pow(10, 9)  # Actualiser le delta time en secondes
+        self.tempsDExecutionEps += self.deltaTimeEps  # Actualiser le temps d'éxécution
+        self.epsNbFrame += 1
+
+        if self.tempsDExecutionEps >= 1:  # Actualisation des eps
+            self.tempsDExecutionEps -= floor(self.tempsDExecutionEps)
+            self.epsNb += 1
+            self.eps = self.epsNbFrame
+            self.epsNbFrame = 0
+            self.epsMoyen = (self.epsMoyen + self.eps) / (2)
+            if self.afficherEps:
+                print("EPS/EPS Moyen:", str(self.eps) + "/" + str(self.epsMoyen))
+
+        self._deltaTimeEps = time_ns()  # Préparer le delta time pour le prochain affichage en utilisant _deltaTime
                     
     def frameGraphique(self): #Gérer les graphismes dans MLib
         self.set_curseur(self.curseurSurvol) #Initialiser le curseur à une valeur par défaut

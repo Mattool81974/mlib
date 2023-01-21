@@ -1,4 +1,8 @@
-ajout de actualisationGraphique a mwidget pour savoir si actualisation graphique nécessaire avec set et get
+ajout de actualisationGraphique a mwidget pour savoir si actualisation graphique nécessaire (2), si une pour les enfants et nécessaire (1) ou si rien et nécessaire avec set et get
+ajout de ancienneSurface dans mwidget qui contient la dernière image obtenu dans _render() avec get et set
 ajout de _evenement() dans mwidget a hérité qui retourne si la fenêtre doit être actualisé ou non
-ajout de _evenementHandle() dans mwidget pour gérer les évènements de manières globales et les appliquer
+ajout de _evenementHandle() dans mwidget pour gérer les évènements de manières globales qui retourne si la fenêtre doit être actualisé ou non et les appliquer gérer dans frameEvenement
+ajout des evenementParSeconde dans mfenetre pour savoir le nombre d'évènements par secondes, actualisé dans frameEvenement
+ajout de _renderEnfant() dans mwidget pour gérer le render des enfants seulement, maitenant utilisé dans _render().
+ajout tempsDExecutionTotal dans mfenetre pour avoir le temps d'éxecution depuis le début du programme actualiser dans _evenement() (même variable et fonctionnement que pour les fps avec get et set)
 dans _rbh render que si actualisationGraphique de l'enfant

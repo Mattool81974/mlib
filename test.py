@@ -3,7 +3,7 @@ from MLib import *
 TAILLE=(500, 500)
 
 fenetre=display.set_mode(TAILLE)
-app = MFenetre(fenetre, "Mon app", afficherFps=True)
+app = MFenetre(fenetre, "Mon app", afficherEps=True)
 titre = MTexte("Analyseur de texte", (100, 0), (300, 100), app, policeTaille=43)
 titreTexte = MTexte("Texte:", (0, 100), (100, 150), app, policeTaille=30, texteAlignement='CC')
 texte = MEntreeTexte((100, 100), (300, 150), app, ligneMax=6, policeTaille=18, longueurMax=-1)
@@ -11,6 +11,8 @@ titreChar = MTexte("Caractère:", (0, 260), (225, 50), app, policeTaille=30, tex
 char = MEntreeTexte((225, 260), (50, 50), app, policeTaille=30, texteAlignement="CC", longueurMax=1)
 bouton = MBouton("Rechercher", (150, 320), (200, 50), app, actionAuSurvol="policeTaille=38", texteAlignement="CC", policeTaille=34)
 resultat = MTexte("Appuyer sur rechercher", (10, 380), (480, 100), app, policeTaille=34, texteAlignement="CC")
+
+app.frame()
 
 while True:
     app.frame()
