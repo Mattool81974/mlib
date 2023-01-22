@@ -182,9 +182,10 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
             curseur[0] = self.curseurSurvol
         self.actualisationGraphique = self._evenement()
         for surface in self.enfant: #Application des évènements des enfants
-            resultat = surface._evenementHandle(curseur)
-            if resultat != 0 and self.actualisationGraphique == 0:
-                self.actualisationGraphique = 1
+            if surface.visible:
+                resultat = surface._evenementHandle(curseur)
+                if resultat != 0 and self.actualisationGraphique == 0:
+                    self.actualisationGraphique = 1
         return self.actualisationGraphique #Retour du final de l'évènement
 
     def _render(self): #Méthode permettant de renvoyer une image de la fenêtre
@@ -220,6 +221,10 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
     def set_arrierePlanCouleur(self, couleur): #Change la couleur d'arrière plan du widget
         self.couleur = couleur
         self.changement = True
+
+    def set_changementEnfant(self, changement = True): #Modifier le changement de tous les enfants
+        for surface in self.enfant:
+            surface.changement = changement
 
     def set_curseurSurvol(self, curseurSurvol): #Change la couleur d'arrière plan du widget
         self.curseurSurvol = curseurSurvol
@@ -258,6 +263,7 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
     def set_visible(self, visible): #Change la visibilité du widget
         self.visible = visible
         self.parent.changement = True
+        self.set_changementEnfant()
 
 
 
@@ -541,6 +547,8 @@ class MBordure(MWidget): #Définition d'une représentant un widget avec une bor
         surfaceBordure.fill((0, 0, 0, 0))
         draw.rect(surfaceBordure, self.bordureCouleur, (0, 0, self.taille[0], self.taille[1]), border_bottom_left_radius=self.borduresRayons[2], border_top_left_radius=self.borduresRayons[3], border_bottom_right_radius=self.borduresRayons[1], border_top_right_radius=self.borduresRayons[0]) #Dessiner la bordure
         draw.rect(surfaceBordure, self.arrierePlanCouleur, (self.borduresLargeurs[3], self.borduresLargeurs[0], self.taille[0] - (self.borduresLargeurs[1] + self.borduresLargeurs[3]), self.taille[1] - (self.borduresLargeurs[2] + self.borduresLargeurs[0])), border_bottom_left_radius=self.borduresRayons[2], border_top_left_radius=self.borduresRayons[3], border_bottom_right_radius=self.borduresRayons[1], border_top_right_radius=self.borduresRayons[0]) #Dessiner l'intèrieur de la bordure
+        masque = mask.from_surface(surfaceBordure, 1) #Masque pour éviter des débordements
+        surface = (masque.to_surface(surface, setsurface=surface, unsetcolor=(0,0,0,0)).convert_alpha())
         surface.blit(surfaceBordure, (0, 0, self.taille[0], self.taille[1])) #Coller la bordure sur la surface
         return surface
 
@@ -1027,7 +1035,7 @@ class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée 
                     self.fenetrePrincipale.evenement.remove(evnt)
         return MTexte._evenement(self) #Retour de l'évènement de la classe parent
     def _renderBeforeHierarchy(self, surface): #Ré-implémentation de la fonction pour afficher l'entrée
-        super()._renderBeforeHierarchy(surface)
+        surface = super()._renderBeforeHierarchy(surface)
         return surface
 
     def get_caracteresAutorises(self):
@@ -1047,6 +1055,8 @@ class MImage(MBordure): #Définition d'une classe widget représentant une image
             self._imageShowed = image.load(self.imageLien)
             self._ancienneImageTaille = self._imageShowed.get_size()
     def _renderBeforeHierarchy(self, surface): #Fonction réimplémenter de MWidget
+        surface = super()._renderBeforeHierarchy(surface)  # Dessiner la bordure
+
         if self.imageLien != "":
             xImage = self.borduresLargeurs[3] #Position x de l'image
             yImage = self.borduresLargeurs[0] #Position y de l'image
@@ -1094,9 +1104,6 @@ class MImage(MBordure): #Définition d'une classe widget représentant une image
             surface.blit(self._imageShowed, (xImage, yImage, self.taille[0] - (self.borduresLargeurs[3] + self.borduresLargeurs[1]), self.taille[1] - (self.borduresLargeurs[2] + self.borduresLargeurs[0]))) #Dessiner l'image sur la surface
 
             self._ancienneImageTaille = self._imageShowed.get_size()  # Actualiser ancienneTaille pour la prochaine itération de la fonction
-
-        surface = super()._renderBeforeHierarchy(surface) #Dessiner la bordure
-        
         return surface
     
     def get_imageAlignement(self): #Retourne l'alignement de l'image

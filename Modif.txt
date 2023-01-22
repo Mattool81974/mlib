@@ -1,6 +1,7 @@
 ajout de actualisationGraphique a mwidget pour savoir si actualisation graphique nécessaire (2), si une pour les enfants et nécessaire (1) ou si rien et nécessaire avec set et get
 ajout de ancienneSurface dans mwidget qui contient la dernière image obtenu dans _render() avec get et set
 ajout de changement dans mwidget pour savoir si quelque chose a changé dans al frame sans get et set
+ajout changementEnfant() dans mwidget pour appliquer un changement a tout les enfants d'un widget
 ajout de _evenement() dans mwidget a hérité qui retourne si la fenêtre doit être actualisé ou non
 ajout de _evenement() dans mtexte pour prendre en compte le curseur
 ajout de _evenement() dans mentreetexte pour prendre en compte le changement de texte
@@ -15,3 +16,5 @@ ajout tempsDExecutionTotal dans mfenetre pour avoir le temps d'éxecution depuis
 arrangement setBordureRayon dans mbordure
 check curseur dans _evenementHandle()
 dans _rbh render que si actualisationGraphique de l'enfant
+partie hors d'une bordure rogné dans mbordure (conserille de mettre super avant le reste dans _rbh)
+pas d'évènement si visible
