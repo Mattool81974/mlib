@@ -63,8 +63,11 @@ def strContent(strC): #Savoir si le str contient de l'alphabet, nombre ...
     return alphaUpper, alphaLower, numerics
 
 class MWidget: #Définition d'une classe représentant tout les widgets dans la GUI
-    def __init__(self, position, taille, parent = None, arrierePlanCouleur = (255, 255, 255, 1), curseurSurvol = SYSTEM_CURSOR_ARROW, type = "Widget"): #Constructeur d'un widget avec comme paramètre la taille
+    def __init__(self, position, taille, parent = None, arrierePlanCouleur = (255, 255, 255, 1), curseurSurvol = SYSTEM_CURSOR_ARROW, renderAuFocus = False, renderAuSurvol = False, type = "Widget"): #Constructeur d'un widget avec comme paramètre la taille
+        self.actualisationGraphique = 2 #Booléen contenant si le widget
+        self.ancienneSurface = None #Ancienne image générer dans _render()
         self.arrierePlanCouleur = arrierePlanCouleur
+        self.changement = False #Booléen de si quelque chose a changé dans le widget
         self.curseurSurvol = curseurSurvol
         self.enfant = [] #Attributs de type liste comprenant tout les enfants de la fenêtre
         self.fenetrePrincipale = self #Variable contenant la fenêtre principale
@@ -73,6 +76,10 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
         self.globalPosition = position #Variable contenant la position par rapport à la fenêtre principale
         self.parent = parent #Parent du widget (si None, alors le widget est une fenêtre de base)
         self.position = position
+        self.renderAuFocus = renderAuFocus #Savoir si il faut faire un render au focus ou non
+        self._renderAuFocus = False #ajuster renderAuFocus
+        self.renderAuSurvol = renderAuSurvol #Savoir si il faut faire un render au survol ou non
+        self._renderAuSurvol = False #Ajuster renderAuSurvol
         self.taille = taille
         self.visible = True #Est ce que le widget est visible
         self.type = type #Variable contenant le type de widget
@@ -94,8 +101,15 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
                 break #Quitter la boucle
         
     def __enleverEnfant(self, enfant): #Enlever un enfant à ce widget (fonction privée)
+        self.changement = True
         if self.enfant.count(enfant) > 0:
             self.enfant.remove(enfant)
+
+    def get_actualisationGraphique(self): #Retourne si une actualisation graphique est nécessaire
+        return self.actualisationGraphique
+
+    def get_ancienneSurface(self): #Retourne la dernière surface générée par _render()
+        return self.ancienneSurface
 
     def get_arrierePlanCouleur(self): #Retourne la couleur d'arrière plan du widget
         return self.arrierePlanCouleur
@@ -127,6 +141,12 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
     def get_rect(self):
         return self.position + self.taille
 
+    def get_renderAuFocus(self):
+        return self.renderAuFocus
+
+    def get_renderAuSurvol(self):
+        return self.renderAuSurvol
+
     def get_survol(self): #Retourne si le widget est survolé par le curseur ou pas
         positionSouris = mouse.get_pos()
         if positionSouris[0] > self.globalPosition[0] and positionSouris[0] < self.globalPosition[0] + self.taille[0] and positionSouris[1] > self.globalPosition[1] and positionSouris[1] < self.globalPosition[1] + self.taille[1]:
@@ -143,22 +163,54 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
         return self.visible
 
     def __nouveauEnfant(self, enfant): #Ajouter un enfant à ce widget (fonction privée)
+        self.changement = True
         if self.enfant.count(enfant) > 0:
             self.enfant.remove(enfant)
         self.enfant.append(enfant)
 
+    def _evenement(self): #Méthode a hérite qui gère les évènements
+        if self.changement:
+            self.changement = False
+            return 2
+        elif (self.renderAuSurvol and self.get_survol() and not self._renderAuSurvol) or ( self.renderAuSurvol and not self.get_survol() and self._renderAuSurvol):  # Si survolé et actualisation nécessaire quand survolé
+            self._renderAuSurvol = not self._renderAuSurvol
+            return 2
+        elif (self.renderAuFocus and self.focus and not self._renderAuFocus) or (self.renderAuFocus and not self.focus and self._renderAuFocus):
+            self._renderAuFocus = not self._renderAuFocus
+            return 2
+        return 0
+
+    def _evenementHandle(self, curseur): #Méthode qui prend en compte les évènements du widget
+        if self.get_survol(): #Si survolé
+            curseur[0] = self.curseurSurvol
+        self.actualisationGraphique = self._evenement()
+        for surface in self.enfant: #Application des évènements des enfants
+            if surface.visible:
+                resultat = surface._evenementHandle(curseur)
+                if resultat != 0 and self.actualisationGraphique == 0:
+                    self.actualisationGraphique = 1
+        return self.actualisationGraphique #Retour du final de l'évènement
+
     def _render(self): #Méthode permettant de renvoyer une image de la fenêtre
         retour = Surface(self.taille, SRCALPHA).convert_alpha() #Création de l'image qui sera retourné à la fin
         retour.fill(self.arrierePlanCouleur)
-        if self.get_survol():
-            self.fenetrePrincipale.set_curseur(self.curseurSurvol)
         retour = self._renderBeforeHierarchy(retour) #Appel de la fonction pour appliquer un render avec celle des widgets enfants
+        self._renderEnfant(retour)
+        retour = self._renderAfterHierarchy(retour) #Appel de la fonction pour appliquer un render après celle des widgets enfants
+        self.ancienneSurface = retour
+        return retour
+
+    def _renderEnfant(self, retour): # Méthode permettant de renvoyer l'image de la fenêtre avec les enfants
         for surface in self.enfant: #Application des render des enfants
             if surface.visible: #Si l'enfant est visible
-                img = surface._render()
-                retour.blit(img, surface.get_rect())
-        retour = self._renderAfterHierarchy(retour) #Appel de la fonction pour appliquer un render après celle des widgets enfants
-        return retour
+                if surface.get_actualisationGraphique() == 2 or self.fenetrePrincipale.tempsDExecution <= 0:#Si actualisation nécessaire
+                    img = surface._render()
+                    retour.blit(img, surface.get_rect())
+                elif surface.get_actualisationGraphique() == 1: #Si actualisation des enfants nécessaire
+                    img = surface._render()
+                    retour.blit(img, surface.get_rect())
+                else:
+                    retour.blit(surface.ancienneSurface, surface.get_rect())
 
     def _renderAfterHierarchy(self, surface): #Méthode permettant de modifier le rendu de render() avant que la hiérarchie soit appliqué, à ré-implémenter
         return surface
@@ -166,8 +218,16 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
     def _renderBeforeHierarchy(self, surface): #Méthode permettant de modifier le rendu de render() avant que la hiérarchie soit appliqué, à ré-implémenter
         return surface
 
+    def set_actualisationGraphique(self, actualisationGraphique): #Change si une actualisation graphique est nécessaire
+        self.actualisationGraphique = actualisationGraphique
+
     def set_arrierePlanCouleur(self, couleur): #Change la couleur d'arrière plan du widget
         self.couleur = couleur
+        self.changement = True
+
+    def set_changementEnfant(self, changement = True): #Modifier le changement de tous les enfants
+        for surface in self.enfant:
+            surface.changement = changement
 
     def set_curseurSurvol(self, curseurSurvol): #Change la couleur d'arrière plan du widget
         self.curseurSurvol = curseurSurvol
@@ -177,6 +237,7 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
             self.parent.__enleverEnfant(self)
         parent.__nouveauEnfant(self)
         self.parent = parent
+        self.changement = True
 
     def set_position(self, position): #Change la position du widget
         self.position = position
@@ -193,20 +254,33 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
                 self.fenetrePrincipale = fenetreBuff #Mettre la fenêtre principale au widget analysé
                 self.fenetrePrincipale._nouvelleElement(self) #Dire à la fenêtre que cette éléments existe
                 break #Quitter la boucle
+        self.changement = True
+
+    def get_renderAuFocus(self, renderAuFocus):
+        self.renderAuFocus = renderAuFocus
+        self.changement = True
+
+    def set_renderAuSurvol(self, renderAuSurvol):
+        self.renderAuSurvol = renderAuSurvol
+        self.changement = True
 
     def set_taille(self, taille): #Change la taille du widget
         self.taille = taille
+        self.changement = True
 
     def set_visible(self, visible): #Change la visibilité du widget
         self.visible = visible
+        self.parent.changement = True
+        self.set_changementEnfant()
 
 
 
 class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre principale
-    def __init__(self, fenetre, titre = "Fenêtre MGui", afficherFps = False, arrierePlanImage="", arrierePlanImageAlignement="GH", arrierePlanImageParSeconde=24, arrierePlanCouleur = (255, 255, 255, 1), curseurSurvol = SYSTEM_CURSOR_ARROW): #Constructeur qui prend la taille en paramètre
+    def __init__(self, fenetre, titre = "Fenêtre MGui", afficherEps = False, afficherFps = False, arrierePlanImage="", arrierePlanImageAlignement="GH", arrierePlanImageParSeconde=24, arrierePlanCouleur = (255, 255, 255, 1), curseurSurvol = SYSTEM_CURSOR_ARROW, renderAuFocus = False, renderAuSurvol = False): #Constructeur qui prend la taille en paramètre
         self.toutLesElements = [] #Liste de tout les éléments de la fenêtre
-        MWidget.__init__(self, (0, 0), fenetre.get_size(), None, arrierePlanCouleur, curseurSurvol, "Fenetre") #Constructeur parent
+        MWidget.__init__(self, (0, 0), fenetre.get_size(), None, arrierePlanCouleur, curseurSurvol, renderAuFocus, renderAuSurvol, "Fenetre") #Constructeur parent
         self.afficherFps = afficherFps
+        self.afficherEps = afficherEps
         self.arrierePlanImage = None
         self.arrierePlanImageAlignement = arrierePlanImageAlignement
         self.actuelFrameGif = 0 #Frame du gif actuel
@@ -227,9 +301,15 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         self.ctrlDroitePressee = False #Savoir si le bouton controle droit est pressée
         self.ctrlGauchePressee = False  #Savoir si le bouton controle gauche est pressée
         self.curseur = SYSTEM_CURSOR_ARROW #Curseur de l'application
-        self._deltaTime = time_ns() #Variable tampon pour deltaTime
+        self._deltaTime = time_ns() #Variable temporaire pour deltaTime
+        self._deltaTimeEps = 0  # Variable temporaire pour deltaTimeEps
         self.deltaTime = 0 #Temps entre 2 frames
+        self.deltaTimeEps = 0 #Temps entre 2 évènements
         self.fenetre = fenetre
+        self.eps = 0  # Nombre d'évènements par secondes
+        self.epsMoyen = 0  # Nombre d'évènements par secondes en moyenne
+        self.epsNb = 0  # Nombre d'actualisation des eps
+        self.epsNbFrame = 0  # Nombre de frame entre 2 actualisations de eps
         self.fps = 0 #Nombre de frames par secondes
         self.fpsMoyen = 0 #Nombre de frames par secondes en moyenne
         self.fpsNb = 0 #Nombre d'actualisation des fps
@@ -238,6 +318,8 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         self.set_titreFenetre(titre)
         self.shiftPressee = False #Savoir si le bouton pour les majuscule est pressé
         self.tempsDExecution = 0 #Temps d'éxécution depuis le dernier comptage des fps
+        self.tempsDExecutionEps = 0  # Temps d'éxécution depuis le dernier comptage des eps
+        self.tempsDExecutionTotal = 0  # Temps d'éxécution depuis le dernier comptage des fps
 
     def _nouvelleElement(self, element): #Ajouter un élément à la fenêtre
         if self.toutLesElements.count(element) <= 0:
@@ -286,6 +368,7 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
         
     def frameEvenement(self): #Fonction qui permet de gérer les évènements dans MLib
         self.positionSouris = mouse.get_pos() #Stocker la position de la souris dans une variable
+        self.tempsDExecutionTotal += self.deltaTime  # Actualiser le temps d'éxécution total
 
         for i in self.toutLesElements:  # Ré-initialiser le focus de frame de chaque éléments
             i.isFocused = False
@@ -333,9 +416,27 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
                 if evnt.key == K_RCTRL:  # Si la touche contrôle gauche n'est plus pressée
                     self.ctrlDroitePressee = False
                     self.evenement.remove(evnt)
+
+        curseur = [self.curseurSurvol]
+        self._evenementHandle(curseur)
+        self.set_curseur(curseur[0])  # Mettre le curseur à jour
+
+        self.deltaTimeEps = (time_ns() - self._deltaTimeEps) / pow(10, 9)  # Actualiser le delta time en secondes
+        self.tempsDExecutionEps += self.deltaTimeEps  # Actualiser le temps d'éxécution
+        self.epsNbFrame += 1
+
+        if self.tempsDExecutionEps >= 1:  # Actualisation des eps
+            self.tempsDExecutionEps -= floor(self.tempsDExecutionEps)
+            self.epsNb += 1
+            self.eps = self.epsNbFrame
+            self.epsNbFrame = 0
+            self.epsMoyen = (self.epsMoyen + self.eps) / (2)
+            if self.afficherEps:
+                print("EPS/EPS Moyen:", str(self.eps) + "/" + str(self.epsMoyen))
+
+        self._deltaTimeEps = time_ns()  # Préparer le delta time pour le prochain affichage en utilisant _deltaTime
                     
     def frameGraphique(self): #Gérer les graphismes dans MLib
-        self.set_curseur(self.curseurSurvol) #Initialiser le curseur à une valeur par défaut
         img = self._render()
         self.fenetre.blit(img, self.get_rect())
         mouse.set_cursor(self.curseur)
@@ -400,6 +501,9 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
     def get_tempsDExecution(self): #Retourne le temps d'éxécution de l'application
         return self.tempsDExecution
 
+    def get_tempsDExecutionTotal(self): #Retourne le temps d'éxécution de l'application
+        return self.tempsDExecutionTotal
+
     def get_titreFenetre(self): #Retourne le titre de la fenêtre
         return display.get_caption()
 
@@ -436,8 +540,8 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
 
 
 class MBordure(MWidget): #Définition d'une représentant un widget avec une bordure
-    def __init__(self, position, taille, parent, bordureLargeur = 2, bordureCouleur = (0, 0, 0), bordureRayon = 0, borduresLargeurs = [None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, type="Bordure"): #Constructeur de la classe
-        MWidget.__init__(self, position, taille, parent, arrierePlanCouleur, curseurSurvol, type) #Appeler le constructeur de la classe MWidget
+    def __init__(self, position, taille, parent, bordureLargeur = 2, bordureCouleur = (0, 0, 0), bordureRayon = 0, borduresLargeurs = [None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, renderAuFocus = False, renderAuSurvol = False, type="Bordure"): #Constructeur de la classe
+        MWidget.__init__(self, position, taille, parent, arrierePlanCouleur, curseurSurvol, renderAuFocus, renderAuSurvol, type) #Appeler le constructeur de la classe MWidget
         for i in enumerate(borduresLargeurs): #Actualisation des largeurs des bordures
             if borduresLargeurs[i[0]] == None:
                 borduresLargeurs[i[0]] = bordureLargeur
@@ -454,6 +558,8 @@ class MBordure(MWidget): #Définition d'une représentant un widget avec une bor
         surfaceBordure.fill((0, 0, 0, 0))
         draw.rect(surfaceBordure, self.bordureCouleur, (0, 0, self.taille[0], self.taille[1]), border_bottom_left_radius=self.borduresRayons[2], border_top_left_radius=self.borduresRayons[3], border_bottom_right_radius=self.borduresRayons[1], border_top_right_radius=self.borduresRayons[0]) #Dessiner la bordure
         draw.rect(surfaceBordure, self.arrierePlanCouleur, (self.borduresLargeurs[3], self.borduresLargeurs[0], self.taille[0] - (self.borduresLargeurs[1] + self.borduresLargeurs[3]), self.taille[1] - (self.borduresLargeurs[2] + self.borduresLargeurs[0])), border_bottom_left_radius=self.borduresRayons[2], border_top_left_radius=self.borduresRayons[3], border_bottom_right_radius=self.borduresRayons[1], border_top_right_radius=self.borduresRayons[0]) #Dessiner l'intèrieur de la bordure
+        masque = mask.from_surface(surfaceBordure, 1) #Masque pour éviter des débordements
+        surface = (masque.to_surface(surface, setsurface=surface, unsetcolor=(0,0,0,0)).convert_alpha())
         surface.blit(surfaceBordure, (0, 0, self.taille[0], self.taille[1])) #Coller la bordure sur la surface
         return surface
 
@@ -475,21 +581,24 @@ class MBordure(MWidget): #Définition d'une représentant un widget avec une bor
             self.bordureLargeur = bordureLargeur
         else:
             self.borduresLargeurs[i] = bordureLargeur
+        self.changement = True
 
     def set_bordureCouleur(self, couleur): #Cange la couleur de la bordure
         self.bordureCouleur = couleur
+        self.changement = True
 
-    def get_bordureRayon(self, bordureRayon, i = -1): #Change le rayon d'un coin de la bordure i
+    def set_bordureRayon(self, bordureRayon, i = -1): #Change le rayon d'un coin de la bordure i
         if i == -1:
             self.bordureRayon = bordureRayon
         else:
             self.borduresRayons[i] = bordureRayon
+        self.changement = True
 
 
 
 class MTexte(MBordure): #Définition d'une classe représentant un texte graphique
-    def __init__(self, texte, position, taille, parent, curseur = False, curseurLargeur=2, curseurRepositionnementSouris=False,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = -1, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur = 0, bordureRayon = 0, borduresLargeurs = [None, None, None, None], borduresRayons = [None, None, None, None], arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, type = "Texte"): #Constructeur
-        MBordure.__init__(self, position, taille, parent, bordureLargeur, bordureCouleur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, type) #Appel du constructeur parent
+    def __init__(self, texte, position, taille, parent, curseur = False, curseurLargeur=2, curseurRepositionnementSouris=False,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = -1, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur = 0, bordureRayon = 0, borduresLargeurs = [None, None, None, None], borduresRayons = [None, None, None, None], arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, renderAuFocus = False, renderAuSurvol = False, type = "Texte"): #Constructeur
+        MBordure.__init__(self, position, taille, parent, bordureLargeur, bordureCouleur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, renderAuFocus, renderAuSurvol, type) #Appel du constructeur parent
         self.curseur = curseur
         self.curseurLargeur = curseurLargeur
         self.curseurPosition = 0 #Défini la position du curseur dans le texte
@@ -513,19 +622,27 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         self.texteAlignement = texteAlignement
         self.texteCouleur = texteCouleur
         self.texteRect = [(0, 0, 0, 0)]
-    def _renderBeforeHierarchy(self, surfaceF): #Ré-implémentation de la fonction pour afficher la bordure
+    def _evenement(self): #Réimplémentation de _evenement de mwidget
         if self.focus and self.curseur:
+            #print(self.curseurTempsDAffichageEcoule)
             if self.curseurTempsDAffichageEcoule == -1: #Calculer le temps restant à afficher ou non le curseur
                 self.curseurTempsDAffichageEcoule = 0
                 self.curseurTempsDAffichageAffiche = True
+                self.changement = True
             if self.curseurTempsDAffichageEcoule >= self.curseurTempsDAffichage:
-                    while self.curseurTempsDAffichageEcoule >= self.curseurTempsDAffichage:
-                        self.curseurTempsDAffichageEcoule -= self.curseurTempsDAffichage
-                    if self.curseurTempsDAffichageAffiche:
-                        self.curseurTempsDAffichageAffiche = False
-                    else:
-                        self.curseurTempsDAffichageAffiche = True
-                    
+                while self.curseurTempsDAffichageEcoule >= self.curseurTempsDAffichage:
+                    self.curseurTempsDAffichageEcoule -= self.curseurTempsDAffichage
+                if self.curseurTempsDAffichageAffiche:
+                    self.curseurTempsDAffichageAffiche = False
+                    self.changement = True
+                else:
+                    self.curseurTempsDAffichageAffiche = True
+                    self.changement = True
+            self.curseurTempsDAffichageEcoule += self.fenetrePrincipale.deltaTimeEps
+        else:
+            self.curseurTempsDAffichageEcoule = -1
+        return MWidget._evenement(self) #Appeler le parent
+    def _renderBeforeHierarchy(self, surfaceF): #Ré-implémentation de la fonction pour afficher la bordure
         if self.curseurPosition < 0: #Calculer la position du curseur (trop petite ou trop grande)
             self.curseurPosition = 0
         elif self.curseurPosition >= len(self.texte):
@@ -697,9 +814,6 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         if self.curseur and self.focus: #Afficher le curseur si nécessaire
             if self.curseurTempsDAffichageAffiche:
                 draw.line(surfaceF, self.texteCouleur, (xCurseur, yCurseur), (xCurseur, yCurseur + hCurseur), self.curseurLargeur)
-            self.curseurTempsDAffichageEcoule += self.fenetrePrincipale.deltaTime
-        else:
-            self.curseurTempsDAffichageEcoule = -1
             
         return surfaceF
 
@@ -777,33 +891,41 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
 
     def set_ligneLongueurMax(self, ligneLongueurMax):
         self.ligneLongueurMax = ligneLongueurMax
+        self.changement = True
 
     def set_ligneMax(self, ligneMax):
         self.ligneMax = ligneMax
+        self.changement = True
 
     def set_longueurMax(self, longueurMax):
         self.longueurMax = longueurMax
+        self.changement = True
 
     def set_policeTaille(self, policeTaille):
         self.policeTaille = policeTaille
+        self.changement = True
 
     def set_policeType(self, policeType):
         self.policeType = policeType
+        self.changement = True
 
     def set_texte(self, texte):
         self.texte = texte
+        self.changement = True
 
     def set_texteAlignement(self, texteAlignement):
         self.texteAlignement = texteAlignement
+        self.changement = True
 
     def set_texteCouleur(self, texteCouleur):
         self.texteCouleur = texteCouleur
+        self.changement = True
 
 
 
 class MBouton(MTexte): #Définition d'une classe représentant un bouton
-    def __init__(self, texte, position, taille, parent, actionAuSurvol = "", curseur = False, curseurLargeur=2, curseurRepositionnementSouris=False,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = 32, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur=5, bordureRayon = 0, borduresLargeurs=[None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur = (255, 255, 255), curseurSurvol = SYSTEM_CURSOR_HAND, type="Bouton"):
-        MTexte.__init__(self, texte, position, taille, parent, curseur, curseurLargeur, curseurRepositionnementSouris, curseurTempsDAffichage, ligneLongueurMax, ligneMax, longueurMax, policeTaille, policeType, texteAlignement, texteCouleur, bordureCouleur, bordureLargeur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, type)
+    def __init__(self, texte, position, taille, parent, actionAuSurvol = "", curseur = False, curseurLargeur=2, curseurRepositionnementSouris=False,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = 32, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur=5, bordureRayon = 0, borduresLargeurs=[None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur = (255, 255, 255), curseurSurvol = SYSTEM_CURSOR_HAND, renderAuFocus = False, renderAuSurvol = True, type="Bouton"):
+        MTexte.__init__(self, texte, position, taille, parent, curseur, curseurLargeur, curseurRepositionnementSouris, curseurTempsDAffichage, ligneLongueurMax, ligneMax, longueurMax, policeTaille, policeType, texteAlignement, texteCouleur, bordureCouleur, bordureLargeur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, renderAuFocus, renderAuSurvol, type)
         self.actionAuSurvol = actionAuSurvol
 
     def _renderBeforeHierarchy(self, surfaceF):
@@ -830,13 +952,14 @@ class MBouton(MTexte): #Définition d'une classe représentant un bouton
 
     def set_actionAuSurvol(self, actionAuSurvol):
         self.actionAuSurvol = actionAuSurvol
+        self.changement = True
 
 
 class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée classe
-    def __init__(self, position, taille, parent, caracteresAutorises = "all", texte = "", curseur = True, curseurLargeur=2, curseurRepositionnementSouris=True,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = 32, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur=5, bordureRayon = 0, borduresLargeurs=[None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur = (255, 255, 255), curseurSurvol = SYSTEM_CURSOR_HAND, type = "EntreeTexte"): #Constructeur d'une entrée texte grâce à la taille, la position, et toutes les variables secondaires
-        MTexte.__init__(self, texte, position, taille, parent, curseur, curseurLargeur, curseurRepositionnementSouris, curseurTempsDAffichage, ligneLongueurMax, ligneMax, longueurMax, policeTaille, policeType, texteAlignement, texteCouleur, bordureCouleur, bordureLargeur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, type) #Appelle du constructeur de MWidget
+    def __init__(self, position, taille, parent, caracteresAutorises = "all", texte = "", curseur = True, curseurLargeur=2, curseurRepositionnementSouris=True,  curseurTempsDAffichage = 0.4, ligneLongueurMax = -1, ligneMax = 1, longueurMax = 32, policeTaille=12, policeType = "Ariel", texteAlignement = "GH", texteCouleur=(0, 0, 0), bordureCouleur = (0, 0, 0), bordureLargeur=5, bordureRayon = 0, borduresLargeurs=[None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur = (255, 255, 255), curseurSurvol = SYSTEM_CURSOR_HAND, renderAuFocus = True, renderAuSurvol = False, type = "EntreeTexte"): #Constructeur d'une entrée texte grâce à la taille, la position, et toutes les variables secondaires
+        MTexte.__init__(self, texte, position, taille, parent, curseur, curseurLargeur, curseurRepositionnementSouris, curseurTempsDAffichage, ligneLongueurMax, ligneMax, longueurMax, policeTaille, policeType, texteAlignement, texteCouleur, bordureCouleur, bordureLargeur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, renderAuFocus, renderAuSurvol, type) #Appelle du constructeur de MWidget
         self.caracteresAutorises = caracteresAutorises
-    def _renderBeforeHierarchy(self, surface): #Ré-implémentation de la fonction pour afficher l'entrée
+    def _evenement(self): #Réimplémentation de evenement de mwidget
         if self.focus: #Si le widget est focus
             for evnt in self.fenetrePrincipale.evenement: #Chercher les évènements du clavier
                 if evnt.type == KEYDOWN:
@@ -919,10 +1042,11 @@ class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée 
                         if len(self.texte) + len(caractere) <= self.longueurMax or self.longueurMax < 0: #Si le texte n'est pas trop long
                             self.texte = self.texte[0:self.curseurPosition] + caractere + self.texte[self.curseurPosition:len(self.texte)] #Ajouter le caractère au texte
                             self.curseurPosition += moveCurseur
+                            self.changement = True
                     self.fenetrePrincipale.evenement.remove(evnt)
-        else:
-            curseurTempsDAffichageEcoule = -1
-        super()._renderBeforeHierarchy(surface)
+        return MTexte._evenement(self) #Retour de l'évènement de la classe parent
+    def _renderBeforeHierarchy(self, surface): #Ré-implémentation de la fonction pour afficher l'entrée
+        surface = super()._renderBeforeHierarchy(surface)
         return surface
 
     def get_caracteresAutorises(self):
@@ -930,10 +1054,11 @@ class MEntreeTexte(MTexte): #Définition d'une classe représentant une entrée 
 
     def set_caracteresAutorises(self, caracteresAutorises):
         self.caracteresAutorises = caracteresAutorises
+        self.changement = True
         
 class MImage(MBordure): #Définition d'une classe widget représentant une image
-    def __init__(self, imageLien, position, taille, parent, imageAlignement="CC", bordureLargeur = 2, bordureCouleur = (0, 0, 0), bordureRayon = 0, borduresLargeurs = [None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, type="Image"):
-        MBordure.__init__(self, position, taille, parent, bordureLargeur, bordureCouleur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, type) #Appel du constructeur parent
+    def __init__(self, imageLien, position, taille, parent, imageAlignement="CC", bordureLargeur = 2, bordureCouleur = (0, 0, 0), bordureRayon = 0, borduresLargeurs = [None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, renderAuFocus = False, renderAuSurvol = False, type="Image"):
+        MBordure.__init__(self, position, taille, parent, bordureLargeur, bordureCouleur, bordureRayon, borduresLargeurs, borduresRayons, arrierePlanCouleur, curseurSurvol, renderAuFocus, renderAuSurvol, type) #Appel du constructeur parent
         self.imageAlignement = imageAlignement
         self.imageLien = imageLien
         if imageLien != "":
@@ -941,6 +1066,8 @@ class MImage(MBordure): #Définition d'une classe widget représentant une image
             self._imageShowed = image.load(self.imageLien)
             self._ancienneImageTaille = self._imageShowed.get_size()
     def _renderBeforeHierarchy(self, surface): #Fonction réimplémenter de MWidget
+        surface = super()._renderBeforeHierarchy(surface)  # Dessiner la bordure
+
         if self.imageLien != "":
             xImage = self.borduresLargeurs[3] #Position x de l'image
             yImage = self.borduresLargeurs[0] #Position y de l'image
@@ -988,9 +1115,6 @@ class MImage(MBordure): #Définition d'une classe widget représentant une image
             surface.blit(self._imageShowed, (xImage, yImage, self.taille[0] - (self.borduresLargeurs[3] + self.borduresLargeurs[1]), self.taille[1] - (self.borduresLargeurs[2] + self.borduresLargeurs[0]))) #Dessiner l'image sur la surface
 
             self._ancienneImageTaille = self._imageShowed.get_size()  # Actualiser ancienneTaille pour la prochaine itération de la fonction
-
-        surface = super()._renderBeforeHierarchy(surface) #Dessiner la bordure
-        
         return surface
     
     def get_imageAlignement(self): #Retourne l'alignement de l'image
@@ -1001,6 +1125,7 @@ class MImage(MBordure): #Définition d'une classe widget représentant une image
     
     def set_imageAlignement(self, imageAlignement): #Modifie l'alignement de l'image
         self.imageAlignement = imageAlignement
+        self.changement = True
     
     def set_imageLien(self, imageLien, forcer = False): #Fonction permettant de modifier le lien de l'image
         if imageLien == "":
@@ -1013,3 +1138,4 @@ class MImage(MBordure): #Définition d'une classe widget représentant une image
                 self._image = image.load(self.imageLien)
                 self._imageShowed = image.load(self.imageLien)
                 self._ancienneImageTaille = (0, 0)
+        self.changement = True
