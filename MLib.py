@@ -141,6 +141,9 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
     def get_rect(self):
         return self.position + self.taille
 
+    def get_renderAuFocus(self):
+        return self.renderAuFocus
+
     def get_renderAuSurvol(self):
         return self.renderAuSurvol
 
@@ -253,8 +256,13 @@ class MWidget: #Définition d'une classe représentant tout les widgets dans la 
                 break #Quitter la boucle
         self.changement = True
 
+    def get_renderAuFocus(self, renderAuFocus):
+        self.renderAuFocus = renderAuFocus
+        self.changement = True
+
     def set_renderAuSurvol(self, renderAuSurvol):
         self.renderAuSurvol = renderAuSurvol
+        self.changement = True
 
     def set_taille(self, taille): #Change la taille du widget
         self.taille = taille
@@ -492,6 +500,9 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
 
     def get_tempsDExecution(self): #Retourne le temps d'éxécution de l'application
         return self.tempsDExecution
+
+    def get_tempsDExecutionTotal(self): #Retourne le temps d'éxécution de l'application
+        return self.tempsDExecutionTotal
 
     def get_titreFenetre(self): #Retourne le titre de la fenêtre
         return display.get_caption()
