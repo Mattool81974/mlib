@@ -6,6 +6,8 @@ import os
 from pygame import *
 from sys import *
 from time import time_ns
+from tkinter import Tk
+from tkinter import filedialog
 import pygame
 pygame.init()
 
@@ -13,6 +15,16 @@ ALPHA_UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 ALPHA_LOWER = "abcdefghijklmnopqrstuvwxyz"
 NUMERICS = "1234567890"
 SYMBOLS_KEYPAD_LITTLE = " &é\"'(-è_çà)=^$*ù!:;,~#}{[|`\\^@]¤"
+
+def openDialogFile(fileTypes): #Ouvrir un fichier grâce à une fenêtre de dialogue
+
+    if(fileTypes == "Image"):
+        fileTypes = [("Images", "*.png;*.jpg;*.jpeg")]
+
+    root = Tk()
+    root.withdraw()
+    file_path = filedialog.askopenfilename(filetypes=fileTypes)
+    return file_path
 
 def fichierInfo(fichier: str, type: str): #Obtenir des informations sur un fichier
     fichier.replace("\\", "/") #Formater le lien du fichier
@@ -542,17 +554,17 @@ class MFenetre(MWidget): #Définition d'une classe représentant la fenêtre pri
 class MBordure(MWidget): #Définition d'une représentant un widget avec une bordure
     def __init__(self, position, taille, parent, bordureLargeur = 2, bordureCouleur = (0, 0, 0), bordureRayon = 0, borduresLargeurs = [None, None, None, None], borduresRayons=[None, None, None, None], arrierePlanCouleur=(0, 0, 0, 0), curseurSurvol=SYSTEM_CURSOR_ARROW, renderAuFocus = False, renderAuSurvol = False, type="Bordure"): #Constructeur de la classe
         MWidget.__init__(self, position, taille, parent, arrierePlanCouleur, curseurSurvol, renderAuFocus, renderAuSurvol, type) #Appeler le constructeur de la classe MWidget
-        for i in enumerate(borduresLargeurs): #Actualisation des largeurs des bordures
-            if borduresLargeurs[i[0]] == None:
-                borduresLargeurs[i[0]] = bordureLargeur
         self.bordureLargeur = bordureLargeur
-        self.borduresLargeurs = borduresLargeurs
-        for i in enumerate(borduresRayons): #Actualisation des rayons des bordures
-            if borduresRayons[i[0]] == None:
-                borduresRayons[i[0]] = bordureRayon
-        self.bordureRayon = bordureRayon
-        self.borduresRayons = borduresRayons
+        self.borduresLargeurs = borduresLargeurs.copy()
+        for i in enumerate(self.borduresLargeurs): #Actualisation des largeurs des bordures
+            if self.borduresLargeurs[i[0]] == None:
+                self.borduresLargeurs[i[0]] = self.bordureLargeur
+        self.borduresRayons = borduresRayons.copy()
         self.bordureCouleur = bordureCouleur
+        self.bordureRayon = bordureRayon
+        for i in enumerate(self.borduresRayons): #Actualisation des rayons des bordures
+            if self.borduresRayons[i[0]] == None:
+                self.borduresRayons[i[0]] = self.bordureRayon
     def _renderBeforeHierarchy(self, surface): #Ré-implémentation de la fonction pour afficher la bordure
         surfaceBordure = Surface(self.taille, SRCALPHA).convert_alpha() #Création de l'image qui contient la bordure
         surfaceBordure.fill((0, 0, 0, 0))
@@ -607,7 +619,7 @@ class MTexte(MBordure): #Définition d'une classe représentant un texte graphiq
         self.curseurTempsDAffichageAffiche = True
         self.curseurTempsDAffichageEcoule = 0 #Temps écoulé depuis le changement de curseur
         if ligneLongueurMax < 0:
-            self.ligneLongueurMax = taille[0] - (borduresLargeurs[1] + borduresLargeurs[3])
+            self.ligneLongueurMax = taille[0] - (self.borduresLargeurs[1] + self.borduresLargeurs[3])
         else:
             self.ligneLongueurMax = ligneLongueurMax
         self.ligneMax = ligneMax
